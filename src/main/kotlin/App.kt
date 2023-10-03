@@ -31,11 +31,11 @@ fun App(textViewModel: TextViewModel) {
                 modifier = Modifier
                     .padding(10.dp)
                     .fillMaxSize()
-                    .border(BorderStroke(1.dp, Color.Red))
+                    .border(BorderStroke(1.dp, Color.Red)),
             ) {
-                textViewModel.text.let {
+                textViewModel.let {
                     val measuredText = textMeasurer.measure(
-                        AnnotatedString(it),
+                        AnnotatedString(textViewModel.text),
                         style = TextStyle(fontSize = 20.sp)
                     )
 
