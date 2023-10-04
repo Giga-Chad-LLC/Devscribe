@@ -115,9 +115,7 @@ class TextViewModel {
 
         when (pressedArrow) {
             Key.DirectionUp -> changeCursorPositionDirectionUp()
-            Key.DirectionRight -> {
-
-            }
+            Key.DirectionRight -> changeCursorPositionDirectionRight()
             Key.DirectionDown -> {
 
             }
@@ -127,6 +125,35 @@ class TextViewModel {
         }
     }
 
+    private fun changeCursorPositionDirectionRight() {
+        cursor = cursor.run {
+            val newOffset: Int
+            val newLineNumber: Int
+            val newCurrentLineOffset: Int
+
+            if (currentLineOffset == textLines[lineNumber].length && lineNumber + 1 < textLines.size) {
+                // if cursor is at the end of current line and there exist next line
+                // then move to the next line start
+                newOffset = offset + System.lineSeparator().length
+                newLineNumber = lineNumber + 1
+                newCurrentLineOffset = 0
+            }
+            else if (currentLineOffset < textLines[lineNumber].length) {
+                // moving cursor to the next char
+                newOffset = offset + 1
+                newLineNumber = lineNumber
+                newCurrentLineOffset = currentLineOffset + 1
+            }
+            else {
+                // standing on the last position of the last line
+                newOffset = offset
+                newLineNumber = lineNumber
+                newCurrentLineOffset = currentLineOffset
+            }
+
+            Cursor(newOffset, newLineNumber, newCurrentLineOffset)
+        }
+    }
 
     private fun changeCursorPositionDirectionUp() {
         cursor = cursor.run {
