@@ -21,7 +21,7 @@ class TextViewModel {
 
         if (event.type == KeyEventType.KeyDown) {
             when (event.key) {
-                Key.Backspace -> removeLastSymbol()
+                Key.Backspace -> backspaceCursoredSymbol()
                 Key.Enter -> moveToNewline()
                 Key.DirectionUp,
                 Key.DirectionRight,
@@ -34,45 +34,73 @@ class TextViewModel {
         return true
     }
 
-    private fun removeLastSymbol() {
-        if (textLines.last().isEmpty() && textLines.size > 1) {
-            // removing last line -> remove newline
-            textLines.removeLast()
+    private data class CurrentCursorLineChunks(val beforeCursor: String, val afterCursor: String)
+    private fun splitCurrentCursorLine(): CurrentCursorLineChunks {
+        val currentLine = textLines[cursor.lineNumber]
 
-            cursor.apply {
-                offset -= System.lineSeparator().length
-                lineNumber -= 1
-                currentLineOffset = textLines[lineNumber].length - 1
+        val currentLineBeforeCursor = if (currentLine.isEmpty())
+            "" else currentLine.substring(IntRange(0, cursor.currentLineOffset - 1))
+
+        val currentLineAfterCursor = if (currentLine.isEmpty())
+            "" else currentLine.substring(cursor.currentLineOffset)
+
+        return CurrentCursorLineChunks(currentLineBeforeCursor, currentLineAfterCursor)
+    }
+
+    private fun backspaceCursoredSymbol() {
+        val currentCursorLineChunks = splitCurrentCursorLine()
+
+        if (currentCursorLineChunks.beforeCursor.isEmpty() && cursor.lineNumber > 0) {
+            // move the current line after cursor to the previous line
+            textLines.removeAt(cursor.lineNumber)
+            textLines[cursor.lineNumber - 1] += currentCursorLineChunks.afterCursor
+
+            cursor = cursor.run {
+                val newOffset = offset - System.lineSeparator().length
+                val newlineNumber = lineNumber - 1
+                val newCurrentLineOffset = textLines[lineNumber - 1].length
+
+                Cursor(newOffset, newlineNumber, newCurrentLineOffset)
             }
         }
-        else if (textLines.last().isNotEmpty()) {
-            // removing general symbol
-            textLines[textLines.size - 1] = textLines.last().dropLast(1)
+        else if (currentCursorLineChunks.beforeCursor.isNotEmpty()) {
+            // removing symbol at cursor position (i.e. last symbol )
+            textLines[cursor.lineNumber] =
+                currentCursorLineChunks.beforeCursor.dropLast(1) + currentCursorLineChunks.afterCursor
 
-            cursor.apply {
-                offset -= 1
-                currentLineOffset -= 1
+            cursor = cursor.run {
+                val newOffset = offset - 1
+                val newCurrentLineOffset = currentLineOffset - 1
+
+                Cursor(newOffset, lineNumber, newCurrentLineOffset)
             }
         }
     }
 
     private fun moveToNewline() {
-        // adding newline
-        textLines.add("")
+        val currentCursorLineChunks = splitCurrentCursorLine()
+        textLines[cursor.lineNumber] = currentCursorLineChunks.beforeCursor
+        textLines.add(cursor.lineNumber + 1, currentCursorLineChunks.afterCursor)
 
-        cursor.apply {
-            offset += System.lineSeparator().length
-            lineNumber += 1
-            currentLineOffset = 0
+        cursor = cursor.run {
+            val newOffset = offset + System.lineSeparator().length
+            val newLineNumber = lineNumber + 1
+            val newCurrentLineOffset = 0
+
+            Cursor(newOffset, newLineNumber, newCurrentLineOffset)
         }
     }
 
     private fun insertCharacter(ch: Char) {
-        textLines[textLines.size - 1] = textLines.last() + ch
+        println(cursor)
+        val currentCursorLineChunks = splitCurrentCursorLine()
+        textLines[cursor.lineNumber] = currentCursorLineChunks.beforeCursor + ch + currentCursorLineChunks.afterCursor
 
-        cursor.apply {
-            offset += 1
-            currentLineOffset += 1
+        cursor = cursor.run {
+            val newOffset = offset + 1
+            val newCurrentLineOffset = currentLineOffset + 1
+
+            Cursor(newOffset, lineNumber, newCurrentLineOffset)
         }
     }
 
@@ -84,21 +112,7 @@ class TextViewModel {
                 pressedArrow == Key.DirectionLeft)
 
         when (pressedArrow) {
-            Key.DirectionUp -> {
-                // shifting back to the beginning of current line
-
-                cursor.offset
-
-                /*if (caret.lineNumber > 0) {
-                    --caret.lineNumber
-                }
-
-                assert(caret.lineNumber < textLines.size)
-
-                if (caret.position > textLines[caret.lineNumber].length) {
-                    caret.position = textLines[caret.lineNumber].length
-                }*/
-            }
+            Key.DirectionUp -> changeCursorPositionDirectionUp()
             Key.DirectionRight -> {
 
             }
@@ -108,6 +122,39 @@ class TextViewModel {
             Key.DirectionLeft -> {
 
             }
+        }
+    }
+
+
+    private fun changeCursorPositionDirectionUp() {
+        cursor = cursor.run {
+            val newOffset: Int
+            val newLineNumber: Int
+            var newCurrentLineOffset = currentLineOffset
+
+            if (lineNumber > 0) {
+                newLineNumber = lineNumber - 1
+                val newLineLength = textLines[lineNumber - 1].length
+
+                if (currentLineOffset > newLineLength) {
+                    // current line offset exceeds the length of a new line -> move to the end of new line
+                    newOffset = offset - (currentLineOffset + System.lineSeparator().length)
+                    newCurrentLineOffset = newLineLength
+                }
+                else {
+                    // preserving current line offset
+                    // and reducing total offset by the line length and line separator
+                    newOffset = offset - (newLineLength + System.lineSeparator().length)
+                }
+            }
+            else {
+                // placing cursor to the start position
+                newOffset = 0
+                newLineNumber = 0
+                newCurrentLineOffset = 0
+            }
+
+            Cursor(newOffset, newLineNumber, newCurrentLineOffset)
         }
     }
 }

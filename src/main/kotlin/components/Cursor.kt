@@ -1,3 +1,3 @@
 package components
 
-data class Cursor(var offset: Int, var lineNumber: Int, var currentLineOffset: Int)
+data class Cursor(val offset: Int, val lineNumber: Int, val currentLineOffset: Int)

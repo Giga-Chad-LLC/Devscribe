@@ -40,6 +40,7 @@ fun App(textViewModel: TextViewModel) {
                         style = TextStyle(fontSize = 20.sp)
                     )
 
+                    println("textViewModel.cursor: ${textViewModel.cursor}")
                     val cursor: Rect = measuredText.getCursorRect(textViewModel.cursor.offset)
 
                     /*

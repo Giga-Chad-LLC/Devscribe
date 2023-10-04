@@ -1,21 +1,17 @@
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.window.Window
 
 
-private val textViewModel = TextViewModel()
-
 @Composable
 fun AppWindow(onCloseRequestCallback: () -> Unit) {
+    val textViewModel = TextViewModel()
+
     return Window(
         onCloseRequest = onCloseRequestCallback,
-        onKeyEvent = { handleEventKey(it) }
+        onKeyEvent = { textViewModel.processKeyEvent(it) }
     ) {
         App(textViewModel)
     }
-}
-
-
-private fun handleEventKey(event: KeyEvent): Boolean {
-    return textViewModel.processKeyEvent(event)
 }
