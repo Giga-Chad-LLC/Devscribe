@@ -116,12 +116,37 @@ class TextViewModel {
         when (pressedArrow) {
             Key.DirectionUp -> changeCursorPositionDirectionUp()
             Key.DirectionRight -> changeCursorPositionDirectionRight()
-            Key.DirectionDown -> {
+            Key.DirectionDown -> changeCursorPositionDirectionDown()
+            Key.DirectionLeft -> changeCursorPositionDirectionLeft()
+        }
+    }
 
-            }
-            Key.DirectionLeft -> {
+    private fun changeCursorPositionDirectionLeft() {
+        cursor = cursor.run {
+            val newOffset: Int
+            val newLineNumber: Int
+            val newCurrentLineOffset: Int
 
+            if (currentLineOffset == 0 && lineNumber > 0) {
+                // moving up to the beginning of the above line
+                newOffset = offset - System.lineSeparator().length
+                newLineNumber = lineNumber - 1
+                newCurrentLineOffset = textLines[lineNumber - 1].length
             }
+            else if (currentLineOffset > 0) {
+                newOffset = offset - 1
+                newLineNumber = lineNumber
+                newCurrentLineOffset = currentLineOffset - 1
+                // moving one symbol left
+            }
+            else {
+                // staying at offset 0
+                newOffset = offset
+                newLineNumber = lineNumber
+                newCurrentLineOffset = currentLineOffset
+            }
+
+            Cursor(newOffset, newLineNumber, newCurrentLineOffset)
         }
     }
 
@@ -186,4 +211,37 @@ class TextViewModel {
             Cursor(newOffset, newLineNumber, newCurrentLineOffset)
         }
     }
+
+    private fun changeCursorPositionDirectionDown() {
+        cursor = cursor.run {
+            val newOffset: Int
+            val newLineNumber: Int
+            val newCurrentLineOffset: Int
+
+            if (lineNumber + 1 < textLines.size) {
+                newLineNumber = lineNumber + 1
+                val newLineLength = textLines[lineNumber + 1].length
+
+                newCurrentLineOffset = if (currentLineOffset > newLineLength) {
+                    // move to the end of new line
+                    newLineLength
+                } else {
+                    // preserve current line offset
+                    currentLineOffset
+                }
+
+                newOffset = offset + (textLines[lineNumber].length - currentLineOffset) +
+                            newCurrentLineOffset + System.lineSeparator().length
+            }
+            else {
+                // staying at the last line and placing cursor at the end position
+                newOffset = offset + (textLines[lineNumber].length - currentLineOffset);
+                newLineNumber = lineNumber
+                newCurrentLineOffset = textLines[lineNumber].length
+            }
+
+            Cursor(newOffset, newLineNumber, newCurrentLineOffset)
+        }
+    }
+
 }
