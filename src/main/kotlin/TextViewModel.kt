@@ -53,12 +53,14 @@ class TextViewModel {
         if (currentCursorLineChunks.beforeCursor.isEmpty() && cursor.lineNumber > 0) {
             // move the current line after cursor to the previous line
             textLines.removeAt(cursor.lineNumber)
+
+            val prevLineLength = textLines[cursor.lineNumber - 1].length
             textLines[cursor.lineNumber - 1] += currentCursorLineChunks.afterCursor
 
             cursor = cursor.run {
                 val newOffset = offset - System.lineSeparator().length
                 val newlineNumber = lineNumber - 1
-                val newCurrentLineOffset = textLines[lineNumber - 1].length
+                val newCurrentLineOffset = prevLineLength
 
                 Cursor(newOffset, newlineNumber, newCurrentLineOffset)
             }
