@@ -40,15 +40,18 @@ fun App(textViewModel: TextViewModel) {
                         style = TextStyle(fontSize = 20.sp)
                     )
 
+                    println("text size: '${textViewModel.text.length}'")
                     println("textViewModel.cursor: ${textViewModel.cursor}")
                     val cursor: Rect = measuredText.getCursorRect(textViewModel.cursor.offset)
 
+                    println("Printable cursor: $cursor")
                     /*
                     AnnotatedString(it.value, listOf(
                         AnnotatedString.Range(SpanStyle(fontWeight = FontWeight(900)), 0, it.value.length)
                     ))
                     */
                     drawText(measuredText)
+                    println("redraw")
                     drawRect(
                         color = Color.Black,
                         topLeft = Offset(cursor.left, cursor.top),
