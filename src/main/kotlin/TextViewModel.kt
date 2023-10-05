@@ -1,11 +1,10 @@
-import androidx.compose.runtime.*
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.input.key.*
 import components.Cursor
 import components.TextProvider
-import java.util.stream.Collectors
 
 class TextViewModel {
+    private val nonBreakingSpaceChar = 0xA0.toChar()
     private val textProvider = TextProvider()
 
     val text: String
@@ -28,6 +27,13 @@ class TextViewModel {
                 Key.DirectionRight,
                 Key.DirectionDown,
                 Key.DirectionLeft -> textProvider.changeCursorPosition(event.key)
+                Key.Spacebar -> {
+                    /**
+                     * Consecutive whitespaces are not rendered if there is no basic letter after them.
+                     * Instead, a special non-breaking space character '\u00A0' is used
+                     */
+                    textProvider.insertCharacter(nonBreakingSpaceChar)
+                }
                 else -> textProvider.insertCharacter(event.utf16CodePoint.toChar())
             }
         }
