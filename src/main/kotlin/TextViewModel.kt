@@ -1,7 +1,7 @@
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.input.key.*
-import components.Cursor
-import components.TextProvider
+import components.text.Cursor
+import components.providers.TextProvider
 
 class TextViewModel {
     /**
