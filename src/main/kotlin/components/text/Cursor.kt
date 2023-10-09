@@ -1,3 +1,3 @@
 package components.text
 
-data class Cursor(val offset: Int, val lineNumber: Int, val currentLineOffset: Int)
+data class Cursor(val offset: Int, val lineIndex: Int, val currentLineOffset: Int)
