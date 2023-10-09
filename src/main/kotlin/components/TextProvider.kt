@@ -101,12 +101,16 @@ class TextProvider {
     }
 
     fun insert(ch: Char) {
+        insert(ch.toString())
+    }
+
+    fun insert(str: String) {
         val currentCursorLineChunks = splitCurrentCursorLine()
-        textLines[cursor.lineNumber] = currentCursorLineChunks.beforeCursor + ch + currentCursorLineChunks.afterCursor
+        textLines[cursor.lineNumber] = currentCursorLineChunks.beforeCursor + str + currentCursorLineChunks.afterCursor
 
         cursor = cursor.run {
-            val newOffset = offset + 1
-            val newCurrentLineOffset = currentLineOffset + 1
+            val newOffset = offset + str.length
+            val newCurrentLineOffset = currentLineOffset + str.length
 
             Cursor(newOffset, lineNumber, newCurrentLineOffset)
         }
