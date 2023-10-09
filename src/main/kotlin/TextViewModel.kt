@@ -4,6 +4,10 @@ import components.Cursor
 import components.TextProvider
 
 class TextViewModel {
+    /**
+     * Consecutive whitespaces are not rendered if there is no basic letter after them.
+     * Instead, a special non-breaking space character '\u00A0' is used
+     */
     private val nonBreakingSpaceChar = 0xA0.toChar()
     private val textProvider = TextProvider()
 
@@ -17,24 +21,31 @@ class TextViewModel {
             return textProvider.cursor
         }
 
+    private fun isPrintable(ch: Char): Boolean {
+        return !ch.isISOControl() && !ch.isIdentifierIgnorable() && ch.isDefined()
+    }
+
     @OptIn(ExperimentalComposeUiApi::class)
     fun processKeyEvent(event: KeyEvent): Boolean {
         if (event.type == KeyEventType.KeyDown) {
             when (event.key) {
-                Key.Backspace -> textProvider.backspaceCursoredSymbol()
-                Key.Enter -> textProvider.moveToNewline()
-                Key.DirectionUp,
-                Key.DirectionRight,
-                Key.DirectionDown,
-                Key.DirectionLeft -> textProvider.changeCursorPosition(event.key)
-                Key.Spacebar -> {
-                    /**
-                     * Consecutive whitespaces are not rendered if there is no basic letter after them.
-                     * Instead, a special non-breaking space character '\u00A0' is used
-                     */
-                    textProvider.insertCharacter(nonBreakingSpaceChar)
+                Key.Backspace -> textProvider.backspace()
+                Key.Enter -> textProvider.newline()
+                Key.DirectionUp -> textProvider.changeCursorPositionDirectionUp()
+                Key.DirectionRight -> textProvider.changeCursorPositionDirectionRight()
+                Key.DirectionDown -> textProvider.changeCursorPositionDirectionDown()
+                Key.DirectionLeft -> textProvider.changeCursorPositionDirectionLeft()
+                Key.Spacebar -> textProvider.insert(nonBreakingSpaceChar)
+                Key.Delete -> textProvider.delete()
+                else -> {
+                    val ch: Char = event.utf16CodePoint.toChar()
+                    if (isPrintable(ch)) {
+                        textProvider.insert(ch)
+                    }
+                    else {
+                        println("Provided unsupported character '${ch.code}' is non-printable")
+                    }
                 }
-                else -> textProvider.insertCharacter(event.utf16CodePoint.toChar())
             }
         }
 

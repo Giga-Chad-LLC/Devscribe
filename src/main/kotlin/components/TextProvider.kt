@@ -1,14 +1,13 @@
 package components
 
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.ExperimentalComposeUiApi
-import androidx.compose.ui.input.key.Key
 import java.util.stream.Collectors
 
 class TextProvider {
-    private val textLines = mutableListOf("")
+    private val textLines = mutableStateListOf("")
 
     val text: String
         get() {
@@ -34,7 +33,7 @@ class TextProvider {
         return CurrentCursorLineChunks(currentLineBeforeCursor, currentLineAfterCursor)
     }
 
-    fun backspaceCursoredSymbol() {
+    fun backspace() {
         val currentCursorLineChunks = splitCurrentCursorLine()
 
         if (currentCursorLineChunks.beforeCursor.isEmpty() && cursor.lineNumber > 0) {
@@ -53,7 +52,7 @@ class TextProvider {
             }
         }
         else if (currentCursorLineChunks.beforeCursor.isNotEmpty()) {
-            // removing symbol at cursor position (i.e. last symbol )
+            // removing symbol at cursor position (i.e. last symbol)
             textLines[cursor.lineNumber] =
                 currentCursorLineChunks.beforeCursor.dropLast(1) + currentCursorLineChunks.afterCursor
 
@@ -66,7 +65,28 @@ class TextProvider {
         }
     }
 
-    fun moveToNewline() {
+    fun delete() {
+        val currentCursorLineChunks = splitCurrentCursorLine()
+
+        if (currentCursorLineChunks.afterCursor.isEmpty() && cursor.lineNumber + 1 < textLines.size) {
+            // staying on the end of current line and current line is not the last one
+            // move the join the next line with the current line (i.e. delete newline)
+            val nextLine: String = textLines.removeAt(cursor.lineNumber + 1)
+
+            textLines[cursor.lineNumber] = textLines[cursor.lineNumber] + nextLine
+        }
+        else if (currentCursorLineChunks.afterCursor.isNotEmpty()) {
+            // staying on the non-ending position of current line
+            // delete 1st symbol after the cursor
+            textLines[cursor.lineNumber] =
+                currentCursorLineChunks.beforeCursor + currentCursorLineChunks.afterCursor.substring(1)
+        }
+
+        println(textLines.stream().map { s -> "'$s'" }.collect(Collectors.joining(",", "[", "]")))
+        println(cursor)
+    }
+
+    fun newline() {
         val currentCursorLineChunks = splitCurrentCursorLine()
         textLines[cursor.lineNumber] = currentCursorLineChunks.beforeCursor
         textLines.add(cursor.lineNumber + 1, currentCursorLineChunks.afterCursor)
@@ -80,45 +100,22 @@ class TextProvider {
         }
     }
 
-    private fun isPrintable(ch: Char): Boolean {
-        return !ch.isISOControl() && !ch.isIdentifierIgnorable() && ch.isDefined()
+    fun insert(ch: Char) {
+        val currentCursorLineChunks = splitCurrentCursorLine()
+        textLines[cursor.lineNumber] = currentCursorLineChunks.beforeCursor + ch + currentCursorLineChunks.afterCursor
+
+        cursor = cursor.run {
+            val newOffset = offset + 1
+            val newCurrentLineOffset = currentLineOffset + 1
+
+            Cursor(newOffset, lineNumber, newCurrentLineOffset)
+        }
+
+        println(textLines.stream().map { s -> "'$s'" }.collect(Collectors.joining(",", "[", "]")))
+        println(cursor)
     }
 
-    fun insertCharacter(ch: Char) {
-        if (isPrintable(ch)) {
-            println(textLines.stream().map { s -> "'$s'" }.collect(Collectors.joining(",", "[", "]")))
-            println(cursor)
-            val currentCursorLineChunks = splitCurrentCursorLine()
-            textLines[cursor.lineNumber] = currentCursorLineChunks.beforeCursor + ch + currentCursorLineChunks.afterCursor
-
-            cursor = cursor.run {
-                val newOffset = offset + 1
-                val newCurrentLineOffset = currentLineOffset + 1
-
-                Cursor(newOffset, lineNumber, newCurrentLineOffset)
-            }
-        }
-        else {
-            println("Provided character '${ch.code}' is non-printable")
-        }
-    }
-
-    @OptIn(ExperimentalComposeUiApi::class)
-    fun changeCursorPosition(pressedArrow: Key) {
-        assert(pressedArrow == Key.DirectionUp ||
-                pressedArrow == Key.DirectionRight ||
-                pressedArrow == Key.DirectionDown ||
-                pressedArrow == Key.DirectionLeft)
-
-        when (pressedArrow) {
-            Key.DirectionUp -> changeCursorPositionDirectionUp()
-            Key.DirectionRight -> changeCursorPositionDirectionRight()
-            Key.DirectionDown -> changeCursorPositionDirectionDown()
-            Key.DirectionLeft -> changeCursorPositionDirectionLeft()
-        }
-    }
-
-    private fun changeCursorPositionDirectionLeft() {
+    fun changeCursorPositionDirectionLeft() {
         cursor = cursor.run {
             val newOffset: Int
             val newLineNumber: Int
@@ -147,7 +144,7 @@ class TextProvider {
         }
     }
 
-    private fun changeCursorPositionDirectionRight() {
+    fun changeCursorPositionDirectionRight() {
         cursor = cursor.run {
             val newOffset: Int
             val newLineNumber: Int
@@ -177,7 +174,7 @@ class TextProvider {
         }
     }
 
-    private fun changeCursorPositionDirectionUp() {
+    fun changeCursorPositionDirectionUp() {
         cursor = cursor.run {
             val newOffset: Int
             val newLineNumber: Int
@@ -209,7 +206,7 @@ class TextProvider {
         }
     }
 
-    private fun changeCursorPositionDirectionDown() {
+    fun changeCursorPositionDirectionDown() {
         cursor = cursor.run {
             val newOffset: Int
             val newLineNumber: Int
