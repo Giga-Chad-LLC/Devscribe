@@ -15,10 +15,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.*
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.*
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 @OptIn(ExperimentalTextApi::class)
@@ -36,14 +36,22 @@ fun App(textViewModel: TextViewModel) {
                     .border(BorderStroke(1.dp, Color.Red)),
             ) {
                 textViewModel.let {
+                    val styles = it.highlighters
+                        .map { highlighter -> AnnotatedString.Range(
+                            highlighter.style,
+                            highlighter.begin,
+                            highlighter.end
+                        ) }
+
                     val measuredText = textMeasurer.measure(
-                        text = AnnotatedString(textViewModel.text),
+                        text = AnnotatedString(textViewModel.text, styles),
                         style = TextStyle(fontSize = 20.sp, fontFamily = FontFamily.Monospace)
                     )
 
                     val cursor: Rect = measuredText.getCursorRect(textViewModel.cursor.offset)
 
                     /*
+                    // TODO: use AnnotatedString.Range for Highlighters
                     AnnotatedString(it.value, listOf(
                         AnnotatedString.Range(SpanStyle(fontWeight = FontWeight(900)), 0, it.value.length)
                     ))
