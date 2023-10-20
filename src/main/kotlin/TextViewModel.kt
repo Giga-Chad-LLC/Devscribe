@@ -1,6 +1,7 @@
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.input.key.*
 import components.text.Cursor
+import components.providers.LineArrayTextProvider
 import components.providers.TextProvider
 
 class TextViewModel {
@@ -9,7 +10,7 @@ class TextViewModel {
      * Instead, a special non-breaking space character '\u00A0' is used
      */
     private val nonBreakingSpaceChar = 0xA0.toChar()
-    private val textProvider = TextProvider()
+    private val textProvider: TextProvider = LineArrayTextProvider()
 
     val text: String
         get() {
