@@ -20,16 +20,23 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.sp
+import components.ui.text.TextCanvas
 
 @OptIn(ExperimentalTextApi::class)
 @Composable
 @Preview
 fun App(textViewModel: TextViewModel) {
-    val textMeasurer = rememberTextMeasurer()
-
     MaterialTheme {
         Box {
-            Canvas(
+            TextCanvas(
+                modifier = Modifier
+                    .padding(10.dp)
+                    .fillMaxSize()
+                    .border(BorderStroke(1.dp, Color.Red)),
+                textViewModel = textViewModel,
+            )
+
+            /*Canvas(
                 modifier = Modifier
                     .padding(10.dp)
                     .fillMaxSize()
@@ -43,11 +50,6 @@ fun App(textViewModel: TextViewModel) {
 
                     val cursor: Rect = measuredText.getCursorRect(textViewModel.cursor.offset)
 
-                    /*
-                    AnnotatedString(it.value, listOf(
-                        AnnotatedString.Range(SpanStyle(fontWeight = FontWeight(900)), 0, it.value.length)
-                    ))
-                    */
                     drawText(measuredText)
                     drawRect(
                         color = Color.Black,
@@ -56,7 +58,7 @@ fun App(textViewModel: TextViewModel) {
                         style = Stroke(5f)
                     )
                 }
-            }
+            }*/
         }
     }
 }
