@@ -1,16 +1,18 @@
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.window.Window
-import components.view.App
-import components.viewmodels.TextViewModel
+import components.dispatcher.KeyboardEventDispatcher
+import views.App
+import viewmodels.TextViewModel
 
 
 @Composable
 fun AppWindow(onCloseRequestCallback: () -> Unit) {
+    val keyboardDispatcher = KeyboardEventDispatcher.getInstance()
     val textViewModel = TextViewModel()
 
     return Window(
         onCloseRequest = onCloseRequestCallback,
-        onKeyEvent = { textViewModel.processKeyEvent(it) }
+        onKeyEvent = { keyboardDispatcher.dispatch(it) }
     ) {
         App(textViewModel)
     }
