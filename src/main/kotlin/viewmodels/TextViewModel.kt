@@ -1,12 +1,27 @@
 package viewmodels
 
-import androidx.compose.ui.ExperimentalComposeUiApi
-import androidx.compose.ui.input.key.*
+import androidx.compose.ui.input.key.utf16CodePoint
+import components.dispatcher.KeyboardEventDispatcher
+import components.dispatcher.KeyboardEventDispatcher.KeyboardAction
 import models.text.Cursor
 import models.text.LineArrayTextModel
 import models.text.TextModel
 
 class TextViewModel {
+    init {
+        val dispatcher = KeyboardEventDispatcher.getInstance()
+
+        dispatcher.subscribe(KeyboardAction.BACKSPACE) { textModel.backspace() }
+        dispatcher.subscribe(KeyboardAction.NEWLINE) { textModel.newline() }
+        dispatcher.subscribe(KeyboardAction.DIRECTION_UP) { textModel.changeCursorPositionDirectionUp() }
+        dispatcher.subscribe(KeyboardAction.DIRECTION_RIGHT) { textModel.changeCursorPositionDirectionRight() }
+        dispatcher.subscribe(KeyboardAction.DIRECTION_DOWN) { textModel.changeCursorPositionDirectionDown() }
+        dispatcher.subscribe(KeyboardAction.DIRECTION_LEFT) { textModel.changeCursorPositionDirectionLeft() }
+        dispatcher.subscribe(KeyboardAction.SPACE) { textModel.insert(nonBreakingSpaceChar) }
+        dispatcher.subscribe(KeyboardAction.DELETE) { textModel.delete() }
+        dispatcher.subscribe(KeyboardAction.PRINTABLE_SYMBOL) { textModel.insert(it.utf16CodePoint.toChar()) }
+    }
+
     /**
      * Consecutive whitespaces are not rendered if there is no basic letter after them.
      * Instead, a special non-breaking space character '\u00A0' is used
@@ -23,37 +38,4 @@ class TextViewModel {
         get() {
             return textModel.cursor
         }
-
-    private fun isPrintable(ch: Char): Boolean {
-        return !ch.isISOControl() && !ch.isIdentifierIgnorable() && ch.isDefined()
-    }
-
-    @OptIn(ExperimentalComposeUiApi::class)
-    fun processKeyEvent(event: KeyEvent): Boolean {
-        if (event.type == KeyEventType.KeyDown) {
-            when (event.key) {
-                Key.Backspace -> textModel.backspace()
-                Key.Enter -> textModel.newline()
-                Key.DirectionUp -> textModel.changeCursorPositionDirectionUp()
-                Key.DirectionRight -> textModel.changeCursorPositionDirectionRight()
-                Key.DirectionDown -> textModel.changeCursorPositionDirectionDown()
-                Key.DirectionLeft -> textModel.changeCursorPositionDirectionLeft()
-                Key.Spacebar -> textModel.insert(nonBreakingSpaceChar)
-                Key.Delete -> textModel.delete()
-                else -> {
-                    val ch: Char = event.utf16CodePoint.toChar()
-                    if (isPrintable(ch)) {
-                        textModel.insert(ch)
-                    }
-                    else {
-                        println("Provided unsupported character '${ch.code}' is non-printable")
-                    }
-                }
-            }
-        }
-
-        return true
-    }
-
-
 }
