@@ -21,15 +21,13 @@ class TabsViewModel(private val tabsModel: TabsModel) {
      */
     fun select(fileModelId: UUID) {
         var selected = false
-        for (index in tabsModel.pinnedFiles.indices) {
-            val fileModel = tabsModel.pinnedFiles[index]
-
+        for (fileModel in tabsModel.pinnedFiles) {
             if (fileModelId == fileModel.id) {
-                tabsModel.pinnedFiles[index] = fileModel.activate()
+                fileModel.activate()
                 selected = true
             }
             else {
-                tabsModel.pinnedFiles[index] = fileModel.deactivate()
+                fileModel.deactivate()
             }
         }
 
