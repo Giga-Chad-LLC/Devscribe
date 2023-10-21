@@ -1,24 +1,21 @@
-package components.providers
+package components.models.text
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import components.text.Cursor
 import java.util.stream.Collectors
 
-class TextProvider {
+class LineArrayTextModel : TextModel {
     private val textLines = mutableStateListOf("")
 
-    val text: String
+    override val text: String
         get() {
             // joining lines with newline symbol
             return textLines.toList().stream().collect(Collectors.joining(System.lineSeparator()))
         }
 
-    var cursor by mutableStateOf(Cursor(0, 0, 0))
-        private set
-
+    override var cursor by mutableStateOf(Cursor(0, 0, 0))
 
     private data class CurrentCursorLineChunks(val beforeCursor: String, val afterCursor: String)
 
@@ -34,7 +31,7 @@ class TextProvider {
         return CurrentCursorLineChunks(currentLineBeforeCursor, currentLineAfterCursor)
     }
 
-    fun backspace() {
+    override fun backspace() {
         val currentCursorLineChunks = splitCurrentCursorLine()
 
         if (currentCursorLineChunks.beforeCursor.isEmpty() && cursor.lineNumber > 0) {
@@ -66,7 +63,7 @@ class TextProvider {
         }
     }
 
-    fun delete() {
+    override fun delete() {
         val currentCursorLineChunks = splitCurrentCursorLine()
 
         if (currentCursorLineChunks.afterCursor.isEmpty() && cursor.lineNumber + 1 < textLines.size) {
@@ -87,7 +84,7 @@ class TextProvider {
         println(cursor)
     }
 
-    fun newline() {
+    override fun newline() {
         val currentCursorLineChunks = splitCurrentCursorLine()
         textLines[cursor.lineNumber] = currentCursorLineChunks.beforeCursor
         textLines.add(cursor.lineNumber + 1, currentCursorLineChunks.afterCursor)
@@ -101,11 +98,7 @@ class TextProvider {
         }
     }
 
-    fun insert(ch: Char) {
-        insert(ch.toString())
-    }
-
-    fun insert(str: String) {
+    override fun insert(str: String) {
         val currentCursorLineChunks = splitCurrentCursorLine()
         textLines[cursor.lineNumber] = currentCursorLineChunks.beforeCursor + str + currentCursorLineChunks.afterCursor
 
@@ -120,7 +113,7 @@ class TextProvider {
         println(cursor)
     }
 
-    fun changeCursorPositionDirectionLeft() {
+    override fun changeCursorPositionDirectionLeft() {
         cursor = cursor.run {
             val newOffset: Int
             val newLineNumber: Int
@@ -149,7 +142,7 @@ class TextProvider {
         }
     }
 
-    fun changeCursorPositionDirectionRight() {
+    override fun changeCursorPositionDirectionRight() {
         cursor = cursor.run {
             val newOffset: Int
             val newLineNumber: Int
@@ -179,7 +172,7 @@ class TextProvider {
         }
     }
 
-    fun changeCursorPositionDirectionUp() {
+    override fun changeCursorPositionDirectionUp() {
         cursor = cursor.run {
             val newOffset: Int
             val newLineNumber: Int
@@ -211,7 +204,7 @@ class TextProvider {
         }
     }
 
-    fun changeCursorPositionDirectionDown() {
+    override fun changeCursorPositionDirectionDown() {
         cursor = cursor.run {
             val newOffset: Int
             val newLineNumber: Int

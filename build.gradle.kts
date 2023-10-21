@@ -28,7 +28,7 @@ compose.desktop {
 
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
-            packageName = "ide-development-template"
+            packageName = "devscribe"
             packageVersion = "1.0.0"
         }
     }

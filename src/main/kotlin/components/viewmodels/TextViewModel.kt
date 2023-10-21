@@ -1,7 +1,10 @@
+package components.viewmodels
+
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.input.key.*
-import components.text.Cursor
-import components.providers.TextProvider
+import components.models.text.Cursor
+import components.models.text.LineArrayTextModel
+import components.models.text.TextModel
 
 class TextViewModel {
     /**
@@ -9,16 +12,16 @@ class TextViewModel {
      * Instead, a special non-breaking space character '\u00A0' is used
      */
     private val nonBreakingSpaceChar = 0xA0.toChar()
-    private val textProvider = TextProvider()
+    private val textModel: TextModel = LineArrayTextModel()
 
     val text: String
         get() {
-            return textProvider.text
+            return textModel.text
         }
 
     val cursor: Cursor
         get() {
-            return textProvider.cursor
+            return textModel.cursor
         }
 
     private fun isPrintable(ch: Char): Boolean {
@@ -29,18 +32,18 @@ class TextViewModel {
     fun processKeyEvent(event: KeyEvent): Boolean {
         if (event.type == KeyEventType.KeyDown) {
             when (event.key) {
-                Key.Backspace -> textProvider.backspace()
-                Key.Enter -> textProvider.newline()
-                Key.DirectionUp -> textProvider.changeCursorPositionDirectionUp()
-                Key.DirectionRight -> textProvider.changeCursorPositionDirectionRight()
-                Key.DirectionDown -> textProvider.changeCursorPositionDirectionDown()
-                Key.DirectionLeft -> textProvider.changeCursorPositionDirectionLeft()
-                Key.Spacebar -> textProvider.insert(nonBreakingSpaceChar)
-                Key.Delete -> textProvider.delete()
+                Key.Backspace -> textModel.backspace()
+                Key.Enter -> textModel.newline()
+                Key.DirectionUp -> textModel.changeCursorPositionDirectionUp()
+                Key.DirectionRight -> textModel.changeCursorPositionDirectionRight()
+                Key.DirectionDown -> textModel.changeCursorPositionDirectionDown()
+                Key.DirectionLeft -> textModel.changeCursorPositionDirectionLeft()
+                Key.Spacebar -> textModel.insert(nonBreakingSpaceChar)
+                Key.Delete -> textModel.delete()
                 else -> {
                     val ch: Char = event.utf16CodePoint.toChar()
                     if (isPrintable(ch)) {
-                        textProvider.insert(ch)
+                        textModel.insert(ch)
                     }
                     else {
                         println("Provided unsupported character '${ch.code}' is non-printable")

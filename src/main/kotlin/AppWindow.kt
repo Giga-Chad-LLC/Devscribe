@@ -1,7 +1,7 @@
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
-import androidx.compose.ui.input.key.*
 import androidx.compose.ui.window.Window
+import components.view.App
+import components.viewmodels.TextViewModel
 
 
 @Composable
