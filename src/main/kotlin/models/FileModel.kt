@@ -5,7 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import models.text.LineArrayTextModel
 import models.text.TextModel
-import java.util.UUID
+import java.util.*
 
 class FileModel(
     val filename: String,
@@ -15,12 +15,9 @@ class FileModel(
     val id: UUID = UUID.randomUUID()
     var active by mutableStateOf(false)
 
-    init {
-        println("FileModel $filename created")
-    }
 
     override fun toString(): String {
-        return "FileModel[filename='$filename', active=$active]"
+        return "FileModel[id=$id, filename='$filename', active=$active]"
     }
 
     fun activate() {
