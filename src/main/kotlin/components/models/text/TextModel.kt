@@ -1,6 +1,6 @@
 package components.models.text
 
-interface TextProvider {
+interface TextModel {
     val text: String
     var cursor: Cursor
 

@@ -6,7 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import java.util.stream.Collectors
 
-class LineArrayTextProvider : TextProvider {
+class LineArrayTextModel : TextModel {
     private val textLines = mutableStateListOf("")
 
     override val text: String
