@@ -1,4 +1,4 @@
-package components.views.tabs
+package views.tabs
 
 import androidx.compose.foundation.Indication
 import androidx.compose.foundation.background

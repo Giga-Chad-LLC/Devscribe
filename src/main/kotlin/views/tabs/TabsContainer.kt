@@ -1,10 +1,10 @@
-package components.views.tabs
+package views.tabs
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import components.viewmodels.TabsViewModel
+import viewmodels.TabsViewModel
 
 
 @Composable

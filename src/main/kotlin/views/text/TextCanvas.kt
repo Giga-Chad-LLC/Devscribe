@@ -1,6 +1,6 @@
-package components.views.text
+package views.text
 
-import components.viewmodels.TextViewModel
+import viewmodels.TextViewModel
 import androidx.compose.foundation.Canvas
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier

@@ -1,7 +1,7 @@
-package components.viewmodels
+package viewmodels
 
-import components.models.FileModel
-import components.models.TabsModel
+import models.FileModel
+import models.TabsModel
 import java.lang.IllegalStateException
 import java.util.UUID
 

@@ -1,7 +1,7 @@
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.window.Window
-import components.views.App
-import components.viewmodels.TextViewModel
+import views.App
+import viewmodels.TextViewModel
 
 
 @Composable

@@ -1,4 +1,4 @@
-package components.models.text
+package models.text
 
 interface TextModel {
     val text: String

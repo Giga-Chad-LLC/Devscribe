@@ -1,10 +1,10 @@
-package components.viewmodels
+package viewmodels
 
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.input.key.*
-import components.models.text.Cursor
-import components.models.text.LineArrayTextModel
-import components.models.text.TextModel
+import models.text.Cursor
+import models.text.LineArrayTextModel
+import models.text.TextModel
 
 class TextViewModel {
     /**

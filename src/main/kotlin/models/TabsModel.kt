@@ -1,4 +1,4 @@
-package components.models
+package models
 
 import androidx.compose.runtime.mutableStateListOf
 import java.util.*

@@ -1,7 +1,7 @@
-package components.models
+package models
 
-import components.models.text.LineArrayTextModel
-import components.models.text.TextModel
+import models.text.LineArrayTextModel
+import models.text.TextModel
 import java.util.UUID
 
 class FileModel(
