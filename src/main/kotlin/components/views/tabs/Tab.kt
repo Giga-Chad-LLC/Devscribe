@@ -17,10 +17,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 
@@ -31,6 +34,7 @@ fun Tab(
     onTabClick: () -> Unit,
     onCloseButtonClick: () -> Unit
     ) {
+    val tabFocusManager = LocalFocusManager.current
     val interactionSource = remember { MutableInteractionSource() }
     val hovered by interactionSource.collectIsHoveredAsState()
 
@@ -50,7 +54,10 @@ fun Tab(
             .hoverable(interactionSource = interactionSource)
             .clickable(
                 role = Role.Tab,
-                onClick = { onTabClick() }
+                onClick = {
+                    onTabClick()
+                    tabFocusManager.clearFocus()
+                }
             )
             .drawBehind {
                 /**
@@ -78,7 +85,10 @@ fun Tab(
             modifier = Modifier
                 .padding(0.dp, 0.dp, 5.dp, 0.dp)
                 .width(15.dp)
-                .clickable { onCloseButtonClick() },
+                .clickable {
+                    onCloseButtonClick()
+                    tabFocusManager.clearFocus()
+               },
             imageVector = Icons.Rounded.Close,
             tint = Color.White,
             contentDescription = "Close tab '$filename'"
