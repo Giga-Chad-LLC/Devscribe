@@ -4,17 +4,29 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import components.viewmodels.TabsViewModel
 
 
 @Composable
-fun TabsContainer(modifier: Modifier) {
+fun TabsContainer(modifier: Modifier, tabsViewModel: TabsViewModel) {
     Row(
         modifier = modifier,
         horizontalArrangement = Arrangement.Start
     ) {
-
-        for (i in 1..3) {
-            Tab("File $i")
+        for (fileModel in tabsViewModel.files) {
+            Tab(
+                filename = fileModel.filename,
+                active = fileModel.active,
+                onTabClick = {
+                    tabsViewModel.select(fileModel.id)
+                    println(tabsViewModel.files)
+                },
+                onCloseButtonClick = {
+                    // TODO: check whether file is saved
+                    tabsViewModel.unpin(fileModel.id)
+                }
+            )
         }
+
     }
 }
