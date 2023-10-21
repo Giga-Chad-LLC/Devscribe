@@ -1,6 +1,6 @@
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.window.Window
-import components.view.App
+import components.views.App
 import components.viewmodels.TextViewModel
 
 

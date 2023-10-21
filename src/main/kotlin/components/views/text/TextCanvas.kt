@@ -1,4 +1,4 @@
-package components.view.text
+package components.views.text
 
 import components.viewmodels.TextViewModel
 import androidx.compose.foundation.Canvas
