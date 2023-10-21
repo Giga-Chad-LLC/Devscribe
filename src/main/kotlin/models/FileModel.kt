@@ -30,6 +30,7 @@ class FileModel(
         return FileModel(filename, textModel, highlighterModel, false)
     }
 
+    // TODO: remove FileModel.equals and compare by getters: 'getId'
     override fun equals(other: Any?): Boolean {
         if (other is FileModel) {
             return id == other.id
