@@ -10,7 +10,7 @@ import java.util.UUID
 class FileModel(
     val filename: String,
     val textModel: TextModel = LineArrayTextModel(),
-    val highlighterModel: HighlighterModel = HighlighterModel(),
+    val highlighterModel: HighlighterModel = HighlighterModel()
 ) {
     val id: UUID = UUID.randomUUID()
     var active by mutableStateOf(false)

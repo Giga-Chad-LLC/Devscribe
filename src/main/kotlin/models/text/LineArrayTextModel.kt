@@ -99,6 +99,7 @@ class LineArrayTextModel : TextModel {
     }
 
     override fun insert(str: String) {
+        // TODO: str may contain '\n' -> we need to split the string into pieces
         val currentCursorLineChunks = splitCurrentCursorLine()
         textLines[cursor.lineNumber] = currentCursorLineChunks.beforeCursor + str + currentCursorLineChunks.afterCursor
 
