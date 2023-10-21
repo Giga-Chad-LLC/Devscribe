@@ -17,10 +17,7 @@ fun TabsContainer(modifier: Modifier, tabsViewModel: TabsViewModel) {
             Tab(
                 filename = fileModel.filename,
                 active = fileModel.active,
-                onTabClick = {
-                    tabsViewModel.select(fileModel.id)
-                    println(tabsViewModel.files)
-                },
+                onTabClick = { tabsViewModel.select(fileModel.id) },
                 onCloseButtonClick = {
                     // TODO: check whether file is saved
                     tabsViewModel.unpin(fileModel.id)

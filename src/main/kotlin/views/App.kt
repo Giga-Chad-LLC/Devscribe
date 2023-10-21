@@ -21,7 +21,7 @@ import views.text.TextCanvas
 
 @Composable
 @Preview
-fun App(textViewModel: TextViewModel) {
+fun App() {
     val projectViewModel by remember { mutableStateOf(ProjectViewModel()) }
     val tabsViewModel by remember { mutableStateOf(TabsViewModel(projectViewModel.project.tabsModel)) }
 
@@ -55,7 +55,7 @@ fun App(textViewModel: TextViewModel) {
                         .fillMaxSize()
                         .background(Color.LightGray)
                         .border(BorderStroke(1.dp, Color.Red)),
-                    textViewModel = textViewModel,
+                    activeFileModel = tabsViewModel.getActiveFile(),
                 )
             }
         }
