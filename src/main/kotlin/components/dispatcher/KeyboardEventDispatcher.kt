@@ -44,7 +44,7 @@ class KeyboardEventDispatcher private constructor() {
 
     private fun isPrintableSymbolAction(event: KeyEvent): Boolean {
         val ch = event.utf16CodePoint.toChar()
-        return !ch.isISOControl() && !ch.isIdentifierIgnorable() && ch.isDefined()
+        return event.type == KeyEventType.KeyDown && !ch.isISOControl() && !ch.isIdentifierIgnorable() && ch.isDefined()
     }
 
     fun dispatch(event: KeyEvent): Boolean {
