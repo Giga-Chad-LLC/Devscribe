@@ -1,6 +1,4 @@
-package components.providers
-
-import components.text.Cursor
+package components.models.text
 
 interface TextProvider {
     val text: String
