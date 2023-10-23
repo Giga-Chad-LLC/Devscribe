@@ -10,7 +10,7 @@ interface TextModel {
     fun insert(ch: Char) {
         insert(ch.toString())
     }
-    fun insert(str: String)
+    fun insert(text: String)
     fun changeCursorPositionDirectionLeft()
     fun changeCursorPositionDirectionRight()
     fun changeCursorPositionDirectionUp()

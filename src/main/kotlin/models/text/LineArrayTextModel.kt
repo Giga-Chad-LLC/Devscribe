@@ -98,20 +98,36 @@ class LineArrayTextModel : TextModel {
         }
     }
 
-    override fun insert(str: String) {
-        // TODO: str may contain '\n' -> we need to split the string into pieces
-        val currentCursorLineChunks = splitCurrentCursorLine()
-        textLines[cursor.lineNumber] = currentCursorLineChunks.beforeCursor + str + currentCursorLineChunks.afterCursor
+    override fun insert(text: String) {
+        val chunks = text.split(System.lineSeparator())
+        val textEndsWithLineSeparator = text.endsWith(System.lineSeparator())
 
-        cursor = cursor.run {
-            val newOffset = offset + str.length
-            val newCurrentLineOffset = currentLineOffset + str.length
+        for (index in chunks.indices) {
+            val line = chunks[index]
 
-            Cursor(newOffset, lineNumber, newCurrentLineOffset)
+            val currentCursorLineChunks = splitCurrentCursorLine()
+            textLines[cursor.lineNumber] = currentCursorLineChunks.beforeCursor + line + currentCursorLineChunks.afterCursor
+
+            cursor = cursor.run {
+                val newOffset = offset + line.length
+                val newCurrentLineOffset = currentLineOffset + line.length
+
+                Cursor(newOffset, lineNumber, newCurrentLineOffset)
+            }
+
+            println(textLines.stream().map { s -> "'$s'" }.collect(Collectors.joining(",", "[", "]")))
+            println(cursor)
+
+            /**
+             * If current line is the last one, and it does not end with line separator
+             * then it does not need the line separator to be inserted.
+             *
+             * Otherwise, insert line separator
+             */
+            if (!(index + 1 == chunks.size && !textEndsWithLineSeparator)) {
+                newline()
+            }
         }
-
-        println(textLines.stream().map { s -> "'$s'" }.collect(Collectors.joining(",", "[", "]")))
-        println(cursor)
     }
 
     override fun changeCursorPositionDirectionLeft() {

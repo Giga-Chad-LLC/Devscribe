@@ -1,6 +1,5 @@
 package views.text
 
-import viewmodels.TextViewModel
 import androidx.compose.foundation.Canvas
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -15,7 +14,7 @@ import androidx.compose.ui.text.*
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.sp
 import models.FileModel
-import viewmodels.TabsViewModel
+import viewmodels.TextViewModel
 
 @OptIn(ExperimentalTextApi::class)
 @Composable
