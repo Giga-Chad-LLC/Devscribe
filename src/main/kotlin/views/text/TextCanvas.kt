@@ -17,7 +17,6 @@ import androidx.compose.ui.text.*
 import androidx.compose.ui.unit.sp
 import models.FileModel
 import viewmodels.TextViewModel
-import views.common.CustomTheme
 import views.common.Fonts
 import views.common.Settings
 
