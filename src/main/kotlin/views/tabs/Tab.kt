@@ -24,11 +24,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import views.common.Settings
 
 @Composable
 fun Tab(
     filename: String,
     active: Boolean,
+    settings: Settings,
     onTabClick: () -> Unit,
     onCloseButtonClick: () -> Unit
     ) {
@@ -77,7 +80,9 @@ fun Tab(
         Text(
             modifier = Modifier.padding(10.dp, 6.dp, 7.dp, 6.dp),
             text = filename,
-            color = Color.White
+            color = Color.White,
+            fontFamily = settings.fontSettings.fontFamily,
+            fontSize = 14.sp,
         )
         Icon(
             modifier = Modifier

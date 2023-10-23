@@ -15,10 +15,11 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.sp
 import models.FileModel
 import viewmodels.TextViewModel
+import views.common.Settings
 
 @OptIn(ExperimentalTextApi::class)
 @Composable
-fun TextCanvas(modifier: Modifier, activeFileModel: FileModel?) {
+fun TextCanvas(modifier: Modifier, activeFileModel: FileModel?, settings: Settings) {
     val textMeasurer = rememberTextMeasurer()
     val textViewModel by remember { mutableStateOf(TextViewModel()) }
 
@@ -29,7 +30,11 @@ fun TextCanvas(modifier: Modifier, activeFileModel: FileModel?) {
             textViewModel.let {
                 val measuredText = textMeasurer.measure(
                     text = AnnotatedString(textViewModel.text),
-                    style = TextStyle(fontSize = 20.sp, fontFamily = FontFamily.Monospace)
+                    style = TextStyle(
+                        color = Color.White,
+                        fontSize = settings.fontSettings.fontSize,
+                        fontFamily = settings.fontSettings.fontFamily
+                    )
                 )
 
                 val cursor: Rect = measuredText.getCursorRect(textViewModel.cursor.offset)
@@ -41,7 +46,7 @@ fun TextCanvas(modifier: Modifier, activeFileModel: FileModel?) {
                 */
                 drawText(measuredText)
                 drawRect(
-                    color = Color.Black,
+                    color = Color.LightGray,
                     topLeft = Offset(cursor.left, cursor.top),
                     size = cursor.size,
                     style = Stroke(5f)
