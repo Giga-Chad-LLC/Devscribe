@@ -5,10 +5,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import viewmodels.TabsViewModel
+import views.common.Settings
 
 
 @Composable
-fun TabsContainer(modifier: Modifier, tabsViewModel: TabsViewModel) {
+fun TabsContainer(modifier: Modifier, settings: Settings, tabsViewModel: TabsViewModel) {
     Row(
         modifier = modifier,
         horizontalArrangement = Arrangement.Start
@@ -18,6 +19,7 @@ fun TabsContainer(modifier: Modifier, tabsViewModel: TabsViewModel) {
                 filename = pinnedFileModel.filename,
                 active = pinnedFileModel.active,
                 onTabClick = { tabsViewModel.select(pinnedFileModel.id) },
+                settings = settings,
                 onCloseButtonClick = {
                     // TODO: check whether file is saved
                     tabsViewModel.unpin(pinnedFileModel.id)
