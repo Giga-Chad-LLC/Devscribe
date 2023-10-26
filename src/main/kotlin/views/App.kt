@@ -6,35 +6,45 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.MaterialTheme
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import components.vfs.OSVirtualFileSystem
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.launch
+import viewmodels.FileTreeViewModel
 import viewmodels.ProjectViewModel
 import viewmodels.TabsViewModel
 import viewmodels.TextViewModel
+import views.filestree.FileTree
+import views.filestree.FileTreeLabel
 import views.tabs.TabsContainer
 import views.text.TextCanvas
+import java.nio.file.Path
 
 @Composable
 @Preview
 fun App() {
-    val projectViewModel by remember { mutableStateOf(ProjectViewModel()) }
-    val tabsViewModel by remember { mutableStateOf(TabsViewModel(projectViewModel.project.tabsModel)) }
+    val vfs = OSVirtualFileSystem(Path.of("C:/Users/dmitriiart/Downloads/ProjectFolder"))
+    val coroutineScope = rememberCoroutineScope() // required to run the state updates on the same scope as components composed
+    val projectViewModel by remember { mutableStateOf(ProjectViewModel(vfs, coroutineScope)) }
+    val tabsViewModel by remember { mutableStateOf(TabsViewModel(projectViewModel.tabsModel, coroutineScope)) }
+    val fileTreeViewModel by remember { mutableStateOf(FileTreeViewModel(projectViewModel.fileTreeModel, tabsViewModel)) }
 
     MaterialTheme {
         Row(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Box(
+            Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .weight(0.2f)
                     .border(BorderStroke(1.dp, Color.Blue))
-            )
+            ) {
+                FileTreeLabel()
+                FileTree(fileTreeViewModel)
+            }
 
             Column(
                 modifier = Modifier

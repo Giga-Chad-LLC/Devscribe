@@ -1,10 +1,7 @@
 package views.text
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
@@ -13,32 +10,37 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.*
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.sp
-import models.FileModel
+import components.vfs.VirtualFileSystem
+import models.PinnedFileModel
 import viewmodels.TextViewModel
 
 @OptIn(ExperimentalTextApi::class)
 @Composable
-fun TextCanvas(modifier: Modifier, activeFileModel: FileModel?) {
+fun TextCanvas(modifier: Modifier, activeFileModel: PinnedFileModel?) {
+    val coroutineScope = rememberCoroutineScope()
     val textMeasurer = rememberTextMeasurer()
-    val textViewModel by remember { mutableStateOf(TextViewModel()) }
+    val textViewModel by remember { mutableStateOf(TextViewModel(coroutineScope)) }
 
+//    if (activeFileModel != null) {
+//         textViewModel.textModel = activeFileModel.textModel
+//    }
     if (activeFileModel != null) {
-        textViewModel.textModel = activeFileModel.textModel
+        textViewModel.activeFileModel = activeFileModel
 
         Canvas(modifier = modifier) {
             textViewModel.let {
                 val measuredText = textMeasurer.measure(
-                    text = AnnotatedString(textViewModel.text),
+                    text = AnnotatedString(it.text),
                     style = TextStyle(fontSize = 20.sp, fontFamily = FontFamily.Monospace)
                 )
 
-                val cursor: Rect = measuredText.getCursorRect(textViewModel.cursor.offset)
+                val cursor: Rect = measuredText.getCursorRect(it.cursor.offset)
 
                 /*
-                AnnotatedString(it.value, listOf(
-                    AnnotatedString.Range(SpanStyle(fontWeight = FontWeight(900)), 0, it.value.length)
-                ))
-                */
+            AnnotatedString(it.value, listOf(
+                AnnotatedString.Range(SpanStyle(fontWeight = FontWeight(900)), 0, it.value.length)
+            ))
+            */
                 drawText(measuredText)
                 drawRect(
                     color = Color.Black,

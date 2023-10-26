@@ -10,6 +10,10 @@ import kotlin.collections.ArrayList
 class KeyboardEventDispatcher private constructor() {
     private val subscribers: MutableMap<KeyboardAction, MutableList<EventHandler>> = EnumMap(KeyboardAction::class.java)
 
+    private fun isSaveFileAction(event: KeyEvent): Boolean {
+        return (event.type == KeyEventType.KeyDown && event.key == Key.S && event.isCtrlPressed)
+    }
+
     private fun isBackspaceAction(event: KeyEvent): Boolean {
         return (event.type == KeyEventType.KeyDown && event.key == Key.Backspace)
     }
@@ -50,6 +54,9 @@ class KeyboardEventDispatcher private constructor() {
     fun dispatch(event: KeyEvent): Boolean {
         var action: KeyboardAction? = null
 
+        if (isSaveFileAction(event)) {
+            action = KeyboardAction.SAVE_FILE
+        }
         if (isBackspaceAction(event)) {
             action = KeyboardAction.BACKSPACE
         }
@@ -122,6 +129,7 @@ class KeyboardEventDispatcher private constructor() {
 
 
     enum class KeyboardAction {
+        SAVE_FILE,
         BACKSPACE,
         NEWLINE,
         DIRECTION_UP,
@@ -130,7 +138,7 @@ class KeyboardEventDispatcher private constructor() {
         DIRECTION_LEFT,
         SPACE,
         DELETE,
-        PRINTABLE_SYMBOL
+        PRINTABLE_SYMBOL,
     }
 
     data class SubscriptionId(private val uuid: UUID? = UUID.randomUUID())

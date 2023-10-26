@@ -1,15 +1,30 @@
 package viewmodels
 
-import models.FileModel
+import common.TextConstants
+import components.vfs.commands.LoadFileFromDiskCommand
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
+import models.PinnedFileModel
 import models.TabsModel
-import java.lang.IllegalStateException
-import java.util.UUID
+import java.util.*
 
-class TabsViewModel(private val tabsModel: TabsModel) {
-    val files: List<FileModel> = tabsModel.pinnedFiles
+class TabsViewModel(
+    private val tabsModel: TabsModel,
+    private val viewScope: CoroutineScope
+) {
+    val files: List<PinnedFileModel> = tabsModel.pinnedFiles
 
-    fun pin(file: FileModel) {
+    fun pin(file: PinnedFileModel) {
         tabsModel.addPinnedFile(file)
+        val vfs = file.virtualFile.getVirtualFileSystem()
+
+        vfs.post(LoadFileFromDiskCommand(vfs, file.virtualFile) {
+            println("VFS file loaded!")
+            viewScope.launch {
+                file.textModel.text = file.virtualFile.data
+                println("Text model synced with VFS file!")
+            }
+        })
     }
 
     fun unpin(fileModelId: UUID) {
@@ -36,7 +51,7 @@ class TabsViewModel(private val tabsModel: TabsModel) {
         }
     }
 
-    fun getActiveFile(): FileModel? {
+    fun getActiveFile(): PinnedFileModel? {
         for (fileModel in tabsModel.pinnedFiles) {
             if (fileModel.active) {
                 return fileModel

@@ -1,7 +1,7 @@
 package models.text
 
 interface TextModel {
-    val text: String
+    var text: String
     var cursor: Cursor
 
     fun backspace()

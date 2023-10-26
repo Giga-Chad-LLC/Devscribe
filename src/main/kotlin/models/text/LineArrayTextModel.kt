@@ -4,15 +4,22 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import common.TextConstants
 import java.util.stream.Collectors
 
 class LineArrayTextModel : TextModel {
     private val textLines = mutableStateListOf("")
 
-    override val text: String
+    override var text: String
         get() {
             // joining lines with newline symbol
-            return textLines.toList().stream().collect(Collectors.joining(System.lineSeparator()))
+            return textLines.toList().stream().map{ it.replace(TextConstants.nonBreakingSpaceChar, ' ') }.collect(Collectors.joining(System.lineSeparator()))
+        }
+        set(data) {
+            cursor = Cursor(0, 0, 0)
+            textLines.clear()
+            textLines.add("")
+            insert(data.replace(' ', TextConstants.nonBreakingSpaceChar))
         }
 
     override var cursor by mutableStateOf(Cursor(0, 0, 0))
@@ -80,7 +87,9 @@ class LineArrayTextModel : TextModel {
                 currentCursorLineChunks.beforeCursor + currentCursorLineChunks.afterCursor.substring(1)
         }
 
-        println(textLines.stream().map { s -> "'$s'" }.collect(Collectors.joining(",", "[", "]")))
+        println(textLines.stream()
+            .map { s -> "'${s.replace(TextConstants.nonBreakingSpaceChar, ' ')}'" }
+            .collect(Collectors.joining(", ", "[", "]")))
         println(cursor)
     }
 
@@ -115,7 +124,9 @@ class LineArrayTextModel : TextModel {
                 Cursor(newOffset, lineNumber, newCurrentLineOffset)
             }
 
-            println(textLines.stream().map { s -> "'$s'" }.collect(Collectors.joining(",", "[", "]")))
+            println(textLines.stream()
+                .map { s -> "'${s.replace(TextConstants.nonBreakingSpaceChar, ' ')}'" }
+                .collect(Collectors.joining(", ", "[", "]")))
             println(cursor)
 
             /**

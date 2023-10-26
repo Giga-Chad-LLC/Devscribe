@@ -13,14 +13,14 @@ fun TabsContainer(modifier: Modifier, tabsViewModel: TabsViewModel) {
         modifier = modifier,
         horizontalArrangement = Arrangement.Start
     ) {
-        for (fileModel in tabsViewModel.files) {
+        for (pinnedFileModel in tabsViewModel.files) {
             Tab(
-                filename = fileModel.filename,
-                active = fileModel.active,
-                onTabClick = { tabsViewModel.select(fileModel.id) },
+                filename = pinnedFileModel.filename,
+                active = pinnedFileModel.active,
+                onTabClick = { tabsViewModel.select(pinnedFileModel.id) },
                 onCloseButtonClick = {
                     // TODO: check whether file is saved
-                    tabsViewModel.unpin(fileModel.id)
+                    tabsViewModel.unpin(pinnedFileModel.id)
                 }
             )
         }

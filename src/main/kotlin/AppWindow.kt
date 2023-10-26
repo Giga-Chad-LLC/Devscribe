@@ -2,7 +2,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.window.Window
 import components.dispatcher.KeyboardEventDispatcher
 import views.App
-import viewmodels.TextViewModel
 
 
 @Composable
