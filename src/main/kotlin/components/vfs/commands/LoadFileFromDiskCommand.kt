@@ -3,9 +3,11 @@ package components.vfs.commands
 import components.GlobalReadWriteLock
 import components.vfs.VirtualFileSystem
 import components.vfs.nodes.VFSFile
-import java.io.BufferedReader
+import java.nio.file.LinkOption
 import java.nio.file.Path
+import java.nio.file.attribute.FileTime
 import kotlin.io.path.exists
+import kotlin.io.path.getLastModifiedTime
 
 class LoadFileFromDiskCommand(
     private val vfs: VirtualFileSystem,
@@ -13,30 +15,37 @@ class LoadFileFromDiskCommand(
     private val callback: Runnable
 ) : VFSCommand {
     override fun run() {
-        println("Process LoadFileCommand in vfs: $vfs")
+        println("Process LoadFileFromDiskCommand in vfs: $vfs")
         val rwlock = GlobalReadWriteLock.getInstance()
         val filePath: Path
+        val fileTimestamp: FileTime
 
         rwlock.lockRead()
         try {
             filePath = virtualFile.getNodePath()
+            fileTimestamp = FileTime.from(virtualFile.timestamp.toInstant())
         }
         finally {
             rwlock.unlockRead()
         }
 
-        println("Load file: '${filePath}'")
         if (!filePath.exists()) {
-            println("File: $filePath does not exist")
+            println("File '$filePath' does not exist on disk")
             return
         }
 
-        val bufferedReader: BufferedReader = filePath.toFile().bufferedReader()
-        val fileData = bufferedReader.use { it.readText() }
+        if (fileTimestamp == filePath.getLastModifiedTime(LinkOption.NOFOLLOW_LINKS)) {
+            println("File '$filePath' is up-to-date: no need to load again.")
+            return
+        }
+
+        println("Loading file: '$filePath'")
+        val newFileData = filePath.toFile().bufferedReader().use { it.readText() }
+        val newFileTimestamp = filePath.getLastModifiedTime()
 
         rwlock.lockWrite()
         try {
-            vfs.syncFileWithDisk(virtualFile, fileData)
+            vfs.syncFileWithDisk(virtualFile, newFileData, newFileTimestamp)
         }
         finally {
             rwlock.unlockWrite()

@@ -1,8 +1,15 @@
 package components.vfs.nodes
 
 import components.vfs.VirtualFileSystem
+import java.nio.file.attribute.FileTime
 
-class VFSFile(vfs: VirtualFileSystem, filename: String, parent: VFSNode?) : VFSNode(vfs, filename, parent) {
+class VFSFile(
+    vfs: VirtualFileSystem,
+    filename: String,
+    parent: VFSNode?,
+    id: Int,
+    timestamp: FileTime
+) : VFSNode(vfs, filename, parent, id, timestamp) {
     var data: String = ""
     // val textData: TextModel = LineArrayTextModel()
 

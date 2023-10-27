@@ -12,10 +12,6 @@ import models.PinnedFileModel
 import models.text.Cursor
 
 class TextViewModel(coroutineScope: CoroutineScope) {
-    /**
-     * Consecutive whitespaces are not rendered if there is no basic letter after them.
-     * Instead, a special non-breaking space character '\u00A0' is used
-     */
     val text: String
         get() {
             return activeFileModel!!.textModel.text

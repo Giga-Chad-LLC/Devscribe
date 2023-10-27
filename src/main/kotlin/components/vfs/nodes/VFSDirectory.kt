@@ -1,9 +1,16 @@
 package components.vfs.nodes
 
 import components.vfs.VirtualFileSystem
+import java.nio.file.attribute.FileTime
 import java.util.*
 
-class VFSDirectory(vfs: VirtualFileSystem, filename: String, parent: VFSNode?) : VFSNode(vfs, filename, parent) {
+class VFSDirectory(
+    vfs: VirtualFileSystem,
+    filename: String,
+    parent: VFSNode?,
+    id: Int,
+    timestamp: FileTime
+) : VFSNode(vfs, filename, parent, id, timestamp) {
     private val childrenNodes: MutableList<VFSNode> = mutableListOf()
 
     fun addChildNode(child: VFSNode) {
