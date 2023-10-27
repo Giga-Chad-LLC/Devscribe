@@ -36,19 +36,18 @@ class LoadFileFromDiskCommand(
 
         if (fileTimestamp == filePath.getLastModifiedTime(LinkOption.NOFOLLOW_LINKS)) {
             println("File '$filePath' is up-to-date: no need to load again.")
-            return
         }
+        else {
+            println("Loading file: '$filePath'")
+            val newFileData = filePath.toFile().bufferedReader().use { it.readText() }
+            val newFileTimestamp = filePath.getLastModifiedTime()
 
-        println("Loading file: '$filePath'")
-        val newFileData = filePath.toFile().bufferedReader().use { it.readText() }
-        val newFileTimestamp = filePath.getLastModifiedTime()
-
-        rwlock.lockWrite()
-        try {
-            vfs.syncFileWithDisk(virtualFile, newFileData, newFileTimestamp)
-        }
-        finally {
-            rwlock.unlockWrite()
+            rwlock.lockWrite()
+            try {
+                vfs.syncFileWithDisk(virtualFile, newFileData, newFileTimestamp)
+            } finally {
+                rwlock.unlockWrite()
+            }
         }
 
         rwlock.lockRead()
