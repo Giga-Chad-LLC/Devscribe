@@ -89,11 +89,13 @@ fun App() {
                     val activeFile = tabsViewModel.getActiveFile()
 
                     if (activeFile != null) {
-                        TextCanvas(
-                            modifier = modifier,
-                            activeFileModel = activeFile,
-                            settings = settings,
-                        )
+                        Box {
+                            TextCanvas(
+                                modifier = modifier,
+                                activeFileModel = activeFile,
+                                settings = settings,
+                            )
+                        }
                     }
                     else {
                         Box(

@@ -1,13 +1,13 @@
 package views.text
 
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.focusable
+import androidx.compose.foundation.*
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.rememberScrollableState
 import androidx.compose.foundation.gestures.scrollable
-import androidx.compose.foundation.onClick
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.v2.ScrollbarAdapter
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.focus.FocusRequester
@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.*
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.dp
 import models.PinnedFileModel
 import models.text.TextModel
 import viewmodels.TextViewModel
@@ -38,10 +39,81 @@ internal data class CanvasState(
     val textModel: TextModel,
 )
 
+private fun CanvasState.getMaxVerticalScrollOffset(): Float {
+    val maxLinesNumber = textModel.linesCount() - LINES_COUNT_VERTICAL_OFFSET
+    return maxLinesNumber * symbolSize.height
+}
+
+private fun CanvasState.getMaxHorizontalScrollOffset(): Float {
+    val maxLineOffset = textModel.maxLineLength() * symbolSize.width
+    val canvasWidth = canvasSize.value.width.toFloat()
+
+    var maxHorizontalOffset = (maxLineOffset - canvasWidth).coerceAtLeast(0f)
+    if (maxHorizontalOffset > 0) {
+        maxHorizontalOffset += SYMBOLS_COUNT_HORIZONTAL_OFFSET * symbolSize.width
+    }
+
+    return maxHorizontalOffset
+}
+
+private fun CanvasState.coerceVerticalOffset(offset: Float): Float {
+    return offset
+        .coerceAtLeast(0f)
+        .coerceAtMost(getMaxVerticalScrollOffset())
+}
+
+private fun CanvasState.coerceHorizontalOffset(offset: Float): Float {
+    return offset
+        .coerceAtLeast(0f)
+        .coerceAtMost(getMaxHorizontalScrollOffset())
+}
+
+
+@Composable
+private fun BoxScope.CanvasVerticalScrollbar(canvasState: CanvasState) {
+    VerticalScrollbar(
+        object : ScrollbarAdapter {
+            override val contentSize: Double
+                get() = canvasState.getMaxVerticalScrollOffset().toDouble() + viewportSize
+            override val scrollOffset: Double
+                get() = canvasState.verticalScrollOffset.value.toDouble()
+            override val viewportSize: Double
+                get() = canvasState.canvasSize.value.height.toDouble()
+
+            override suspend fun scrollTo(scrollOffset: Double) {
+                canvasState.verticalScrollOffset.value =
+                    canvasState.coerceVerticalOffset(scrollOffset.toFloat())
+            }
+        },
+        Modifier.align(Alignment.CenterEnd)
+    )
+}
+
+
+@Composable
+private fun BoxScope.CanvasHorizontalScrollbar(canvasState: CanvasState) {
+    HorizontalScrollbar(
+        object : ScrollbarAdapter {
+            override val contentSize: Double
+                get() = canvasState.getMaxHorizontalScrollOffset() + viewportSize
+            override val scrollOffset: Double
+                get() = canvasState.horizontalScrollOffset.value.toDouble()
+            override val viewportSize: Double
+                get() = canvasState.canvasSize.value.width.toDouble()
+
+            override suspend fun scrollTo(scrollOffset: Double) {
+                canvasState.horizontalScrollOffset.value = canvasState.coerceHorizontalOffset(scrollOffset.toFloat())
+            }
+
+        },
+        Modifier.align(Alignment.BottomCenter)
+    )
+}
+
 
 @OptIn(ExperimentalTextApi::class, ExperimentalFoundationApi::class)
 @Composable
-fun TextCanvas(
+fun BoxScope.TextCanvas(
     modifier: Modifier,
     activeFileModel: PinnedFileModel,
     settings: Settings
@@ -72,6 +144,7 @@ fun TextCanvas(
 
     // println("textSymbolSize=${canvasState.symbolSize}")
 
+    // TODO: use extension function of CanvasState
     val verticalScrollState = rememberScrollableState { delta ->
         /**
          * N := LINES_COUNT_VERTICAL_OFFSET
@@ -91,6 +164,11 @@ fun TextCanvas(
     }
 
     val horizontalScrollState = rememberScrollableState { delta ->
+        /**
+         * If max line of a text exceeds the viewport of canvas then set the max horizontal offset to the difference
+         * between the viewport width and line width extended by SYMBOLS_COUNT_HORIZONTAL_OFFSET.
+         * Otherwise, set max offset to 0.
+         */
         val maxLineOffset = canvasState.textModel.maxLineLength() * canvasState.symbolSize.width
         val canvasWidth = canvasState.canvasSize.value.width.toFloat()
 
@@ -132,11 +210,6 @@ fun TextCanvas(
 
             val cursor: Rect = measuredText.getCursorRect(it.cursor.offset)
 
-            /*
-            AnnotatedString(it.value, listOf(
-                AnnotatedString.Range(SpanStyle(fontWeight = FontWeight(900)), 0, it.value.length)
-            ))
-            */
             val verticalOffset = canvasState.verticalScrollOffset.value
             val horizontalOffset = canvasState.horizontalScrollOffset.value
 
@@ -153,4 +226,8 @@ fun TextCanvas(
             )
         }
     }
+
+    // scrollbars
+    CanvasVerticalScrollbar(canvasState)
+    CanvasHorizontalScrollbar(canvasState)
 }
