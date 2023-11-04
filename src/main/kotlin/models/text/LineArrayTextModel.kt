@@ -263,4 +263,8 @@ class LineArrayTextModel : TextModel {
             Cursor(newOffset, newLineNumber, newCurrentLineOffset)
         }
     }
+
+    override fun linesCount(): Int {
+        return textLines.size
+    }
 }

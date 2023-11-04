@@ -15,4 +15,6 @@ interface TextModel {
     fun changeCursorPositionDirectionRight()
     fun changeCursorPositionDirectionUp()
     fun changeCursorPositionDirectionDown()
+
+    fun linesCount(): Int
 }
