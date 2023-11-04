@@ -11,6 +11,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import components.resizable.SplitState
 import components.vfs.OSVirtualFileSystem
 import viewmodels.FileTreeViewModel
 import viewmodels.ProjectViewModel
@@ -23,15 +24,24 @@ import views.tabs.TabsContainer
 import views.text.TextCanvas
 import java.nio.file.Path
 
+
+class SidebarState {
+    var width by mutableStateOf(300.dp)
+    val minWidth =100.dp
+    val splitState = SplitState()
+}
+
 @Composable
 @Preview
 fun App() {
-    val vfs = OSVirtualFileSystem(Path.of("C:/Users/dmitriiart/Downloads/ProjectFolder"))
+    val vfs = OSVirtualFileSystem(Path.of("C:/Users/Vladislav/Downloads/devscribe-project-folder"))
     val coroutineScope = rememberCoroutineScope() // required to run the state updates on the same scope as components composed
     val projectViewModel by remember { mutableStateOf(ProjectViewModel(vfs, coroutineScope)) }
     val tabsViewModel by remember { mutableStateOf(TabsViewModel(projectViewModel.tabsModel, coroutineScope)) }
     val fileTreeViewModel by remember { mutableStateOf(FileTreeViewModel(projectViewModel.fileTreeModel, tabsViewModel)) }
     var settings by remember { mutableStateOf(Settings()) }
+
+    var sidebarState = remember { SidebarState() }
 
     MaterialTheme(
         colors = CustomTheme.colors.material
@@ -40,16 +50,21 @@ fun App() {
             Row(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
+                /**
+                 * Sidebar with project files
+                 */
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
                         .weight(0.2f)
-                        .border(BorderStroke(1.dp, Color.Blue))
                 ) {
                     FileTreeLabel()
                     FileTree(fileTreeViewModel)
                 }
 
+                /**
+                 * Editor with opened files
+                 */
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
