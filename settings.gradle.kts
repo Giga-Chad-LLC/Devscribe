@@ -10,4 +10,4 @@ pluginManagement {
     }
 }
 
-rootProject.name = "ide-development-template"
+rootProject.name = "devscribe"
