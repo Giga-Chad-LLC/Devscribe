@@ -13,7 +13,8 @@ class LineArrayTextModel : TextModel {
     override var text: String
         get() {
             // joining lines with newline symbol
-            return textLines.toList().stream().map{ it.replace(TextConstants.nonBreakingSpaceChar, ' ') }.collect(Collectors.joining(System.lineSeparator()))
+            return textLines.toList().stream().map{ it.replace(TextConstants.nonBreakingSpaceChar, ' ') }
+                .collect(Collectors.joining(System.lineSeparator()))
         }
         set(data) {
             cursor = Cursor(0, 0, 0)

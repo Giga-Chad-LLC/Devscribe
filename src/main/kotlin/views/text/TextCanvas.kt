@@ -25,6 +25,7 @@ import models.text.Cursor
 import models.text.TextModel
 import viewmodels.TextViewModel
 import views.common.Settings
+import kotlin.math.roundToInt
 
 
 internal const val LINES_COUNT_VERTICAL_OFFSET = 5
@@ -142,13 +143,13 @@ private fun scrollOnCursorOutOfCanvasViewport(
     cursorPosition: Int,
     symbolSizeDimension: Float,
     canvasDimensionOffset: Float,
-    canvasSizeDimension: Int,
+    viewportSize: Int,
     scrollState: ScrollableState
 ) {
     val cursorOffsetInsideViewport = cursorPosition * symbolSizeDimension - canvasDimensionOffset
 
-    if (cursorOffsetInsideViewport > canvasSizeDimension) {
-        val offset = cursorOffsetInsideViewport - canvasSizeDimension
+    if (cursorOffsetInsideViewport > viewportSize) {
+        val offset = cursorOffsetInsideViewport - viewportSize
         coroutineScope.launch {
             scrollState.scrollBy(-offset)
         }
@@ -172,27 +173,43 @@ private fun scrollHorizontallyOnCursorOutOfCanvasViewport(
         cursorPosition = cursor.currentLineOffset,
         symbolSizeDimension = canvasState.symbolSize.width,
         canvasDimensionOffset = horizontalOffset,
-        canvasSizeDimension = canvasState.canvasSize.value.width,
+        viewportSize = canvasState.canvasSize.value.width,
         scrollState = horizontalScrollState
     )
-    /*val horizontalCursorOffsetInsideViewport = cursor.currentLineOffset * canvasState.symbolSize.width - horizontalOffset
+}
 
-    println("horizontalCursorOffset=$horizontalCursorOffsetInsideViewport;" +
-            " lineOffset=${cursor.currentLineOffset * canvasState.symbolSize.width};" +
-            " verticalOffset=$horizontalOffset")
-
-    if (horizontalCursorOffsetInsideViewport > canvasState.canvasSize.value.width) {
-        val offset = horizontalCursorOffsetInsideViewport - canvasState.canvasSize.value.width
-        // TODO: animateScrollBy?
-        coroutineScope.launch {
-            horizontalScrollState.scrollBy(-offset)
-        }
+private fun scrollVerticallyOnCursorOutOfCanvasViewport(
+    coroutineScope: CoroutineScope,
+    canvasState: CanvasState,
+    verticalOffset: Float,
+    cursor: Cursor,
+    verticalScrollState: ScrollableState
+) {
+    /**
+     * Truncation of viewport height by the height of the cursor is required because
+     * otherwise when navigating down cursor will be fully invisible before the manual scrolling starts
+     * (only a point of (0, 0) of cursor rectangle will be visible).
+     * This is so because cursor is considered to be out of a viewport once its point with offset (0, 0) becomes out of the viewport.
+     *
+     * Thus, in order to keep cursor fully visible inside the viewport while navigating both up & down
+     * the truncation of viewport by the size of the cursor is required.
+     *
+     * Note that this is not the case for horizontal movements.
+     */
+    var roundedSymbolHeight = canvasState.symbolSize.height.roundToInt()
+    roundedSymbolHeight = roundedSymbolHeight.let {
+        it + if ((it.toFloat() < canvasState.symbolSize.height)) 1 else 0
     }
-    else if (horizontalCursorOffsetInsideViewport < 0) {
-        coroutineScope.launch {
-            horizontalScrollState.scrollBy(-horizontalCursorOffsetInsideViewport)
-        }
-    }*/
+    val truncatedViewportHeight = canvasState.canvasSize.value.height - roundedSymbolHeight
+
+    scrollOnCursorOutOfCanvasViewport(
+        coroutineScope = coroutineScope,
+        cursorPosition = cursor.lineNumber,
+        symbolSizeDimension = canvasState.symbolSize.height,
+        canvasDimensionOffset = verticalOffset,
+        viewportSize = truncatedViewportHeight,
+        scrollState = verticalScrollState
+    )
 }
 
 
@@ -263,7 +280,15 @@ fun BoxScope.TextCanvas(
                     canvasState = canvasState,
                     horizontalOffset = horizontalOffset,
                     cursor = it.cursor,
-                    horizontalScrollState = horizontalScrollState
+                    horizontalScrollState = horizontalScrollState,
+                )
+
+                scrollVerticallyOnCursorOutOfCanvasViewport(
+                    coroutineScope = coroutineScope,
+                    canvasState = canvasState,
+                    verticalOffset = verticalOffset,
+                    cursor = it.cursor,
+                    verticalScrollState = verticalScrollState,
                 )
 
                 previousCursorState = Cursor(it.cursor)
