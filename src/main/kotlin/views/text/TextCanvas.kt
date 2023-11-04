@@ -1,9 +1,7 @@
 package views.text
 
 import androidx.compose.foundation.*
-import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.gestures.rememberScrollableState
-import androidx.compose.foundation.gestures.scrollable
+import androidx.compose.foundation.gestures.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.v2.ScrollbarAdapter
 import androidx.compose.runtime.*
@@ -21,7 +19,10 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.*
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 import models.PinnedFileModel
+import models.text.Cursor
 import models.text.TextModel
 import viewmodels.TextViewModel
 import views.common.Settings
@@ -147,6 +148,7 @@ fun BoxScope.TextCanvas(
     val coroutineScope = rememberCoroutineScope()
     val textMeasurer = rememberTextMeasurer()
     val textViewModel by remember { mutableStateOf(TextViewModel(coroutineScope, activeFileModel)) }
+    var previousCursorState = remember { Cursor(textViewModel.cursor) }
     val requester = remember { FocusRequester() }
 
     val canvasState = CanvasState(
@@ -196,6 +198,31 @@ fun BoxScope.TextCanvas(
 
             val verticalOffset = canvasState.verticalScrollOffset.value
             val horizontalOffset = canvasState.horizontalScrollOffset.value
+
+
+            if (previousCursorState.offset != it.cursor.offset) {
+                val horizontalCursorOffsetInsideViewport = it.cursor.currentLineOffset * canvasState.symbolSize.width - horizontalOffset
+
+                println("horizontalCursorOffset=$horizontalCursorOffsetInsideViewport;" +
+                        " lineOffset=${it.cursor.currentLineOffset * canvasState.symbolSize.width};" +
+                        " verticalOffset=$horizontalOffset")
+
+                if (horizontalCursorOffsetInsideViewport > canvasState.canvasSize.value.width) {
+                    val offset = horizontalCursorOffsetInsideViewport - canvasState.canvasSize.value.width
+                    // TODO: animateScrollBy?
+                    coroutineScope.launch {
+                        horizontalScrollState.scrollBy(-offset)
+                    }
+                }
+                else if (horizontalCursorOffsetInsideViewport < 0) {
+                    coroutineScope.launch {
+                        horizontalScrollState.scrollBy(-horizontalCursorOffsetInsideViewport)
+                    }
+                }
+
+                previousCursorState = Cursor(it.cursor)
+            }
+
 
             drawText(
                 measuredText,
