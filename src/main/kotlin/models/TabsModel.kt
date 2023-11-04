@@ -13,4 +13,8 @@ class TabsModel {
     fun removePinnedFile(id: UUID): Boolean {
         return pinnedFiles.removeIf { file -> file.id == id }
     }
+
+    fun containsPinnedFile(file: PinnedFileModel): Boolean {
+        return pinnedFiles.contains(file)
+    }
 }

@@ -15,16 +15,18 @@ class TabsViewModel(
     val files: List<PinnedFileModel> = tabsModel.pinnedFiles
 
     fun pin(file: PinnedFileModel) {
-        tabsModel.addPinnedFile(file)
-        val vfs = file.virtualFile.getVirtualFileSystem()
+        if (!tabsModel.containsPinnedFile(file)) {
+            tabsModel.addPinnedFile(file)
+            val vfs = file.virtualFile.getVirtualFileSystem()
 
-        vfs.post(LoadFileFromDiskCommand(vfs, file.virtualFile) {
-            println("VFS file loaded!")
-            viewScope.launch {
-                file.textModel.text = file.virtualFile.data
-                println("Text model synced with VFS file!")
-            }
-        })
+            vfs.post(LoadFileFromDiskCommand(vfs, file.virtualFile) {
+                println("VFS file loaded!")
+                viewScope.launch {
+                    file.textModel.text = file.virtualFile.data
+                    println("Text model synced with VFS file!")
+                }
+            })
+        }
     }
 
     fun unpin(fileModelId: UUID) {
