@@ -9,8 +9,11 @@ import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.input.pointer.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.MeasurePolicy
@@ -20,7 +23,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-
+import views.common.CustomTheme
+import java.awt.Cursor
 
 
 @Composable
@@ -30,7 +34,7 @@ fun VerticallySplittable(
     onResize: (delta: Dp) -> Unit,
     children: @Composable () -> Unit,
 ) {
-    val content = {
+    val content = @Composable {
         children()
         VerticalSplit(state, onResize)
     }
@@ -74,22 +78,24 @@ class SplitState {
 fun VerticalSplit(
     state: SplitState,
     onResize:(delta: Dp) -> Unit,
-    lineColor: Color = Color.Blue
-) {
+    lineColor: Color = Color.Transparent
+) = Box {
     val currentDensity = LocalDensity.current
 
-    // draggable region
+    /**
+     * draggable region
+     */
     Box(
-        Modifier
-            .width(8.dp)
+        modifier = Modifier
+            .width(10.dp)
             .fillMaxSize()
-            .border(BorderStroke(1.dp, Color.Red))
+            .pointerHoverIcon(PointerIcon(Cursor(Cursor.E_RESIZE_CURSOR)))
             .run {
                 if (state.isResizingEnabled) {
                     this.draggable(
                         state = rememberDraggableState {
                             with(currentDensity) {
-                            onResize(it.toDp())
+                                onResize(it.toDp())
                             }
                         },
                         orientation = Orientation.Horizontal,
@@ -101,16 +107,17 @@ fun VerticalSplit(
                 else {
                     this
                 }
-            }
+            },
+        contentAlignment = Alignment.Center
     ) {
-        // displayable splitting line
+        /**
+         * displayable splitting line
+         */
         Box(
             Modifier
                 .width(1.dp)
-                .fillMaxSize()
+                .fillMaxHeight()
                 .background(lineColor)
         )
     }
-
-
 }

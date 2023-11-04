@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import components.resizable.SplitState
+import components.resizable.VerticallySplittable
 import components.vfs.OSVirtualFileSystem
 import viewmodels.FileTreeViewModel
 import viewmodels.ProjectViewModel
@@ -47,16 +48,21 @@ fun App() {
         colors = CustomTheme.colors.material
     ) {
         Surface {
-            Row(
-                horizontalArrangement = Arrangement.SpaceBetween
+            VerticallySplittable(
+                Modifier.fillMaxSize(),
+                sidebarState.splitState,
+                onResize = {
+                    val delta = it
+                    sidebarState.width = (sidebarState.width + delta).coerceAtLeast(sidebarState.minWidth)
+                }
             ) {
                 /**
                  * Sidebar with project files
                  */
                 Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .weight(0.2f)
+                    Modifier
+                        .fillMaxHeight()
+                        .width(sidebarState.width)
                 ) {
                     FileTreeLabel()
                     FileTree(fileTreeViewModel)
@@ -66,9 +72,7 @@ fun App() {
                  * Editor with opened files
                  */
                 Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .weight(0.7f),
+                    modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.Top
                 ) {
                     TabsContainer(
