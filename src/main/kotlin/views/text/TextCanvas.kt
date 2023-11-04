@@ -17,6 +17,7 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.*
 import androidx.compose.ui.unit.IntSize
 import models.PinnedFileModel
@@ -26,6 +27,8 @@ import views.common.Settings
 
 
 internal const val LINES_COUNT_VERTICAL_OFFSET = 5
+internal const val SYMBOLS_COUNT_HORIZONTAL_OFFSET = 5
+
 
 internal data class CanvasState(
     val verticalScrollOffset: MutableState<Float>,
@@ -82,9 +85,26 @@ fun TextCanvas(
             .coerceAtLeast(0f)
             .coerceAtMost(maxVerticalOffset)
 
-        canvasState.verticalScrollOffset.value = newScrollOffset
-
         val scrollConsumed = canvasState.verticalScrollOffset.value - newScrollOffset
+        canvasState.verticalScrollOffset.value = newScrollOffset
+        scrollConsumed
+    }
+
+    val horizontalScrollState = rememberScrollableState { delta ->
+        val maxLineOffset = canvasState.textModel.maxLineLength() * canvasState.symbolSize.width
+        val canvasWidth = canvasState.canvasSize.value.width.toFloat()
+
+        var maxHorizontalOffset = (maxLineOffset - canvasWidth).coerceAtLeast(0f)
+        if (maxHorizontalOffset > 0) {
+            maxHorizontalOffset += SYMBOLS_COUNT_HORIZONTAL_OFFSET * canvasState.symbolSize.width
+        }
+
+        val newScrollOffset = (canvasState.horizontalScrollOffset.value - delta)
+            .coerceAtLeast(0f)
+            .coerceAtMost(maxHorizontalOffset)
+
+        val scrollConsumed = canvasState.horizontalScrollOffset.value - newScrollOffset
+        canvasState.horizontalScrollOffset.value = newScrollOffset
         scrollConsumed
     }
 
@@ -94,8 +114,10 @@ fun TextCanvas(
                 .clipToBounds()
                 .focusRequester(requester)
                 .focusable()
+                .onSizeChanged { canvasState.canvasSize.value = it }
                 .onClick { requester.requestFocus() }
                 .scrollable(verticalScrollState, Orientation.Vertical)
+                .scrollable(horizontalScrollState, Orientation.Horizontal)
         )
     ) {
         textViewModel.let {
@@ -116,16 +138,16 @@ fun TextCanvas(
             ))
             */
             val verticalOffset = canvasState.verticalScrollOffset.value
-            val xOffset = 0f
+            val horizontalOffset = canvasState.horizontalScrollOffset.value
 
             drawText(
                 measuredText,
-                topLeft = Offset(xOffset, -verticalOffset)
+                topLeft = Offset(-horizontalOffset, -verticalOffset)
             )
 
             drawRect(
                 color = Color.LightGray,
-                topLeft = Offset(cursor.left + xOffset, cursor.top - verticalOffset),
+                topLeft = Offset(cursor.left - horizontalOffset, cursor.top - verticalOffset),
                 size = cursor.size,
                 style = Stroke(5f)
             )
