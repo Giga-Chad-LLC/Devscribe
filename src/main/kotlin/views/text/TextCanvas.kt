@@ -18,7 +18,6 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.*
 import androidx.compose.ui.unit.IntSize
-import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import models.PinnedFileModel
@@ -138,6 +137,65 @@ private fun CanvasState.initializeHorizontalScrollbar() = rememberScrollableStat
 }
 
 
+private fun scrollOnCursorOutOfCanvasViewport(
+    coroutineScope: CoroutineScope,
+    cursorPosition: Int,
+    symbolSizeDimension: Float,
+    canvasDimensionOffset: Float,
+    canvasSizeDimension: Int,
+    scrollState: ScrollableState
+) {
+    val cursorOffsetInsideViewport = cursorPosition * symbolSizeDimension - canvasDimensionOffset
+
+    if (cursorOffsetInsideViewport > canvasSizeDimension) {
+        val offset = cursorOffsetInsideViewport - canvasSizeDimension
+        coroutineScope.launch {
+            scrollState.scrollBy(-offset)
+        }
+    }
+    else if (cursorOffsetInsideViewport < 0) {
+        coroutineScope.launch {
+            scrollState.scrollBy(-cursorOffsetInsideViewport)
+        }
+    }
+}
+
+private fun scrollHorizontallyOnCursorOutOfCanvasViewport(
+    coroutineScope: CoroutineScope,
+    canvasState: CanvasState,
+    horizontalOffset: Float,
+    cursor: Cursor,
+    horizontalScrollState: ScrollableState
+) {
+    scrollOnCursorOutOfCanvasViewport(
+        coroutineScope = coroutineScope,
+        cursorPosition = cursor.currentLineOffset,
+        symbolSizeDimension = canvasState.symbolSize.width,
+        canvasDimensionOffset = horizontalOffset,
+        canvasSizeDimension = canvasState.canvasSize.value.width,
+        scrollState = horizontalScrollState
+    )
+    /*val horizontalCursorOffsetInsideViewport = cursor.currentLineOffset * canvasState.symbolSize.width - horizontalOffset
+
+    println("horizontalCursorOffset=$horizontalCursorOffsetInsideViewport;" +
+            " lineOffset=${cursor.currentLineOffset * canvasState.symbolSize.width};" +
+            " verticalOffset=$horizontalOffset")
+
+    if (horizontalCursorOffsetInsideViewport > canvasState.canvasSize.value.width) {
+        val offset = horizontalCursorOffsetInsideViewport - canvasState.canvasSize.value.width
+        // TODO: animateScrollBy?
+        coroutineScope.launch {
+            horizontalScrollState.scrollBy(-offset)
+        }
+    }
+    else if (horizontalCursorOffsetInsideViewport < 0) {
+        coroutineScope.launch {
+            horizontalScrollState.scrollBy(-horizontalCursorOffsetInsideViewport)
+        }
+    }*/
+}
+
+
 @OptIn(ExperimentalTextApi::class, ExperimentalFoundationApi::class)
 @Composable
 fun BoxScope.TextCanvas(
@@ -199,26 +257,14 @@ fun BoxScope.TextCanvas(
             val verticalOffset = canvasState.verticalScrollOffset.value
             val horizontalOffset = canvasState.horizontalScrollOffset.value
 
-
             if (previousCursorState.offset != it.cursor.offset) {
-                val horizontalCursorOffsetInsideViewport = it.cursor.currentLineOffset * canvasState.symbolSize.width - horizontalOffset
-
-                println("horizontalCursorOffset=$horizontalCursorOffsetInsideViewport;" +
-                        " lineOffset=${it.cursor.currentLineOffset * canvasState.symbolSize.width};" +
-                        " verticalOffset=$horizontalOffset")
-
-                if (horizontalCursorOffsetInsideViewport > canvasState.canvasSize.value.width) {
-                    val offset = horizontalCursorOffsetInsideViewport - canvasState.canvasSize.value.width
-                    // TODO: animateScrollBy?
-                    coroutineScope.launch {
-                        horizontalScrollState.scrollBy(-offset)
-                    }
-                }
-                else if (horizontalCursorOffsetInsideViewport < 0) {
-                    coroutineScope.launch {
-                        horizontalScrollState.scrollBy(-horizontalCursorOffsetInsideViewport)
-                    }
-                }
+                scrollHorizontallyOnCursorOutOfCanvasViewport(
+                    coroutineScope = coroutineScope,
+                    canvasState = canvasState,
+                    horizontalOffset = horizontalOffset,
+                    cursor = it.cursor,
+                    horizontalScrollState = horizontalScrollState
+                )
 
                 previousCursorState = Cursor(it.cursor)
             }
