@@ -267,4 +267,8 @@ class LineArrayTextModel : TextModel {
     override fun linesCount(): Int {
         return textLines.size
     }
+
+    override fun maxLineLength(): Int {
+        return textLines.maxOfOrNull { s -> s.length } ?: 0
+    }
 }
