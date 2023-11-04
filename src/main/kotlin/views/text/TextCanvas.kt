@@ -40,11 +40,21 @@ internal data class CanvasState(
 )
 
 private fun CanvasState.getMaxVerticalScrollOffset(): Float {
+    /**
+     * N := LINES_COUNT_VERTICAL_OFFSET
+     *
+     * Subtracting N from total lines count to make last N lines visible at the lowest position of vertical scroll
+     */
     val maxLinesNumber = textModel.linesCount() - LINES_COUNT_VERTICAL_OFFSET
     return maxLinesNumber * symbolSize.height
 }
 
 private fun CanvasState.getMaxHorizontalScrollOffset(): Float {
+    /**
+     * If max line of a text exceeds the viewport of canvas then set the max horizontal offset to the difference
+     * between the viewport width and line width extended by SYMBOLS_COUNT_HORIZONTAL_OFFSET.
+     * Otherwise, set max offset to 0.
+     */
     val maxLineOffset = textModel.maxLineLength() * symbolSize.width
     val canvasWidth = canvasSize.value.width.toFloat()
 
@@ -110,6 +120,22 @@ private fun BoxScope.CanvasHorizontalScrollbar(canvasState: CanvasState) {
     )
 }
 
+@Composable
+private fun CanvasState.initializeVerticalScrollbar() = rememberScrollableState { delta ->
+    val newScrollOffset = coerceVerticalOffset(verticalScrollOffset.value - delta)
+    val scrollConsumed = verticalScrollOffset.value - newScrollOffset
+    verticalScrollOffset.value = newScrollOffset
+    scrollConsumed
+}
+
+@Composable
+private fun CanvasState.initializeHorizontalScrollbar() = rememberScrollableState { delta ->
+    val newScrollOffset = coerceHorizontalOffset(horizontalScrollOffset.value - delta)
+    val scrollConsumed = horizontalScrollOffset.value - newScrollOffset
+    horizontalScrollOffset.value = newScrollOffset
+    scrollConsumed
+}
+
 
 @OptIn(ExperimentalTextApi::class, ExperimentalFoundationApi::class)
 @Composable
@@ -120,10 +146,7 @@ fun BoxScope.TextCanvas(
 ) {
     val coroutineScope = rememberCoroutineScope()
     val textMeasurer = rememberTextMeasurer()
-
-    val textViewModel by remember { mutableStateOf(TextViewModel(coroutineScope)) }
-    textViewModel.activeFileModel = activeFileModel
-
+    val textViewModel by remember { mutableStateOf(TextViewModel(coroutineScope, activeFileModel)) }
     val requester = remember { FocusRequester() }
 
     val canvasState = CanvasState(
@@ -144,47 +167,8 @@ fun BoxScope.TextCanvas(
 
     // println("textSymbolSize=${canvasState.symbolSize}")
 
-    // TODO: use extension function of CanvasState
-    val verticalScrollState = rememberScrollableState { delta ->
-        /**
-         * N := LINES_COUNT_VERTICAL_OFFSET
-         *
-         * Subtracting N from total lines count to make last N lines visible at the lowest position of vertical scroll
-         */
-        val maxLinesNumber = canvasState.textModel.linesCount() - LINES_COUNT_VERTICAL_OFFSET
-        val maxVerticalOffset = maxLinesNumber * canvasState.symbolSize.height
-
-        val newScrollOffset = (canvasState.verticalScrollOffset.value - delta)
-            .coerceAtLeast(0f)
-            .coerceAtMost(maxVerticalOffset)
-
-        val scrollConsumed = canvasState.verticalScrollOffset.value - newScrollOffset
-        canvasState.verticalScrollOffset.value = newScrollOffset
-        scrollConsumed
-    }
-
-    val horizontalScrollState = rememberScrollableState { delta ->
-        /**
-         * If max line of a text exceeds the viewport of canvas then set the max horizontal offset to the difference
-         * between the viewport width and line width extended by SYMBOLS_COUNT_HORIZONTAL_OFFSET.
-         * Otherwise, set max offset to 0.
-         */
-        val maxLineOffset = canvasState.textModel.maxLineLength() * canvasState.symbolSize.width
-        val canvasWidth = canvasState.canvasSize.value.width.toFloat()
-
-        var maxHorizontalOffset = (maxLineOffset - canvasWidth).coerceAtLeast(0f)
-        if (maxHorizontalOffset > 0) {
-            maxHorizontalOffset += SYMBOLS_COUNT_HORIZONTAL_OFFSET * canvasState.symbolSize.width
-        }
-
-        val newScrollOffset = (canvasState.horizontalScrollOffset.value - delta)
-            .coerceAtLeast(0f)
-            .coerceAtMost(maxHorizontalOffset)
-
-        val scrollConsumed = canvasState.horizontalScrollOffset.value - newScrollOffset
-        canvasState.horizontalScrollOffset.value = newScrollOffset
-        scrollConsumed
-    }
+    val verticalScrollState = canvasState.initializeVerticalScrollbar()
+    val horizontalScrollState = canvasState.initializeHorizontalScrollbar()
 
     Canvas(
         modifier.then(
