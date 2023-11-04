@@ -1,79 +1,133 @@
 package views.text
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.layout.Box
-import androidx.compose.material.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.rememberScrollableState
+import androidx.compose.foundation.gestures.scrollable
+import androidx.compose.foundation.onClick
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.*
-import androidx.compose.ui.unit.sp
-import components.vfs.VirtualFileSystem
+import androidx.compose.ui.unit.IntSize
 import models.PinnedFileModel
+import models.text.TextModel
 import viewmodels.TextViewModel
-import views.common.Fonts
 import views.common.Settings
 
-@OptIn(ExperimentalTextApi::class)
+
+internal const val LINES_COUNT_VERTICAL_OFFSET = 5
+
+internal data class CanvasState(
+    val verticalScrollOffset: MutableState<Float>,
+    val horizontalScrollOffset: MutableState<Float>,
+    val canvasSize: MutableState<IntSize>,
+    val symbolSize: Size,
+    val textModel: TextModel,
+)
+
+
+@OptIn(ExperimentalTextApi::class, ExperimentalFoundationApi::class)
 @Composable
 fun TextCanvas(
     modifier: Modifier,
-    activeFileModel: PinnedFileModel?,
+    activeFileModel: PinnedFileModel,
     settings: Settings
 ) {
     val coroutineScope = rememberCoroutineScope()
     val textMeasurer = rememberTextMeasurer()
+
     val textViewModel by remember { mutableStateOf(TextViewModel(coroutineScope)) }
+    textViewModel.activeFileModel = activeFileModel
 
-    if (activeFileModel != null) {
-        textViewModel.activeFileModel = activeFileModel
+    val requester = remember { FocusRequester() }
 
-        Canvas(modifier = modifier) {
-            textViewModel.let {
-                val measuredText = textMeasurer.measure(
-                    text = AnnotatedString(it.text),
-                    style = TextStyle(
-                        color = Color.White,
-                        fontSize = settings.fontSettings.fontSize,
-                        fontFamily = settings.fontSettings.fontFamily
-                    )
-                )
+    val canvasState = CanvasState(
+        verticalScrollOffset = remember { mutableStateOf(0f) },
+        horizontalScrollOffset = remember { mutableStateOf(0f) },
+        canvasSize = remember { mutableStateOf(IntSize.Zero) },
+        symbolSize = remember(settings.fontSettings) {
+            // TODO: might be incorrect
+            val style = TextStyle(
+                fontSize = settings.fontSettings.fontSize,
+                fontFamily = settings.fontSettings.fontFamily
+            )
+            val size = textMeasurer.measure(AnnotatedString("a"), style).size
+            Size(size.width.toFloat(), size.height.toFloat())
+        },
+        textModel = activeFileModel.textModel
+    )
 
-                val cursor: Rect = measuredText.getCursorRect(it.cursor.offset)
+    // println("textSymbolSize=${canvasState.symbolSize}")
 
-                /*
-                AnnotatedString(it.value, listOf(
-                    AnnotatedString.Range(SpanStyle(fontWeight = FontWeight(900)), 0, it.value.length)
-                ))
-                */
-                drawText(measuredText)
-                drawRect(
-                    color = Color.LightGray,
-                    topLeft = Offset(cursor.left, cursor.top),
-                    size = cursor.size,
-                    style = Stroke(5f)
-                )
-            }
-        }
+    val verticalScrollState = rememberScrollableState { delta ->
+        /**
+         * N := LINES_COUNT_VERTICAL_OFFSET
+         *
+         * Subtracting N from total lines count to make last N lines visible at the lowest position of vertical scroll
+         */
+        val maxLinesNumber = canvasState.textModel.linesCount() - LINES_COUNT_VERTICAL_OFFSET
+        val maxVerticalOffset = maxLinesNumber * canvasState.symbolSize.height
+
+        val newScrollOffset = (canvasState.verticalScrollOffset.value - delta)
+            .coerceAtLeast(0f)
+            .coerceAtMost(maxVerticalOffset)
+
+        canvasState.verticalScrollOffset.value = newScrollOffset
+
+        val scrollConsumed = canvasState.verticalScrollOffset.value - newScrollOffset
+        scrollConsumed
     }
-    else {
-        Box(
-            modifier = modifier,
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = "Select file for modifications",
-                fontFamily = Fonts.JetBrainsMono(),
-                color = Color(1.0f, 1.0f, 1.0f, 0.6f),
-                fontSize = 22.sp
+
+    Canvas(
+        modifier.then(
+            Modifier
+                .clipToBounds()
+                .focusRequester(requester)
+                .focusable()
+                .onClick { requester.requestFocus() }
+                .scrollable(verticalScrollState, Orientation.Vertical)
+        )
+    ) {
+        textViewModel.let {
+            val measuredText = textMeasurer.measure(
+                text = AnnotatedString(it.text),
+                style = TextStyle(
+                    color = Color.White,
+                    fontSize = settings.fontSettings.fontSize,
+                    fontFamily = settings.fontSettings.fontFamily
+                )
+            )
+
+            val cursor: Rect = measuredText.getCursorRect(it.cursor.offset)
+
+            /*
+            AnnotatedString(it.value, listOf(
+                AnnotatedString.Range(SpanStyle(fontWeight = FontWeight(900)), 0, it.value.length)
+            ))
+            */
+            val verticalOffset = canvasState.verticalScrollOffset.value
+            val xOffset = 0f
+
+            drawText(
+                measuredText,
+                topLeft = Offset(xOffset, -verticalOffset)
+            )
+
+            drawRect(
+                color = Color.LightGray,
+                topLeft = Offset(cursor.left + xOffset, cursor.top - verticalOffset),
+                size = cursor.size,
+                style = Stroke(5f)
             )
         }
     }

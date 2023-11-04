@@ -7,10 +7,13 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Surface
+import androidx.compose.material.Text
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import components.resizable.SplitState
 import components.resizable.VerticallySplittable
 import components.vfs.OSVirtualFileSystem
@@ -18,6 +21,7 @@ import viewmodels.FileTreeViewModel
 import viewmodels.ProjectViewModel
 import viewmodels.TabsViewModel
 import views.common.CustomTheme
+import views.common.Fonts
 import views.common.Settings
 import views.filestree.FileTree
 import views.filestree.FileTreeLabel
@@ -40,9 +44,9 @@ fun App() {
     val projectViewModel by remember { mutableStateOf(ProjectViewModel(vfs, coroutineScope)) }
     val tabsViewModel by remember { mutableStateOf(TabsViewModel(projectViewModel.tabsModel, coroutineScope)) }
     val fileTreeViewModel by remember { mutableStateOf(FileTreeViewModel(projectViewModel.fileTreeModel, tabsViewModel)) }
-    var settings by remember { mutableStateOf(Settings()) }
+    val settings by remember { mutableStateOf(Settings()) }
 
-    var sidebarState = remember { SidebarState() }
+    val sidebarState = remember { SidebarState() }
 
     MaterialTheme(
         colors = CustomTheme.colors.material
@@ -81,11 +85,29 @@ fun App() {
                         tabsViewModel = tabsViewModel
                     )
 
-                    TextCanvas(
-                        modifier = Modifier.fillMaxSize().background(CustomTheme.colors.backgroundDark),
-                        activeFileModel = tabsViewModel.getActiveFile(),
-                        settings = settings,
-                    )
+                    val modifier = Modifier.fillMaxSize().background(CustomTheme.colors.backgroundDark)
+                    val activeFile = tabsViewModel.getActiveFile()
+
+                    if (activeFile != null) {
+                        TextCanvas(
+                            modifier = modifier,
+                            activeFileModel = activeFile,
+                            settings = settings,
+                        )
+                    }
+                    else {
+                        Box(
+                            modifier = modifier,
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = "Select file for modifications",
+                                fontFamily = Fonts.JetBrainsMono(),
+                                color = Color(1.0f, 1.0f, 1.0f, 0.6f),
+                                fontSize = 22.sp
+                            )
+                        }
+                    }
                 }
             }
         }
