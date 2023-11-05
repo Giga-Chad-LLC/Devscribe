@@ -1,4 +1,4 @@
-package views.text
+package views.editor
 
 import androidx.compose.foundation.*
 import androidx.compose.foundation.gestures.*
@@ -323,7 +323,7 @@ private fun DrawScope.drawLinesPanel(
 
 @OptIn(ExperimentalTextApi::class, ExperimentalFoundationApi::class)
 @Composable
-fun BoxScope.TextCanvas(
+fun Editor(
     modifier: Modifier,
     activeFileModel: PinnedFileModel,
     settings: Settings

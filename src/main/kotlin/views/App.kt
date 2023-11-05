@@ -1,9 +1,7 @@
 package views
 
 import androidx.compose.desktop.ui.tooling.preview.Preview
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Surface
@@ -26,7 +24,7 @@ import views.common.Settings
 import views.filestree.FileTree
 import views.filestree.FileTreeLabel
 import views.tabs.TabsContainer
-import views.text.TextCanvas
+import views.editor.Editor
 import java.nio.file.Path
 
 
@@ -90,7 +88,7 @@ fun App() {
 
                     if (activeFile != null) {
                         Box {
-                            TextCanvas(
+                            Editor(
                                 modifier = modifier,
                                 activeFileModel = activeFile,
                                 settings = settings,
