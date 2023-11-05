@@ -17,7 +17,7 @@ class SyncFileWithFrontendCommand(
         try {
             vfs.syncFileWithFrontend(file, data)
             println("File $file is synced with frontend")
-            println("File data: '${file.data}'")
+            // println("File data: '${file.data}'")
         }
         finally {
             rwlock.unlockWrite()

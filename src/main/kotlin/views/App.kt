@@ -88,8 +88,6 @@ fun App() {
                     val modifier = Modifier.fillMaxSize().background(CustomTheme.colors.backgroundDark)
                     val activeFile = tabsViewModel.getActiveFile()
 
-                    println("activeFile: ${activeFile}")
-
                     if (activeFile != null) {
                         Box {
                             TextCanvas(

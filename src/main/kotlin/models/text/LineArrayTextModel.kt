@@ -88,9 +88,9 @@ class LineArrayTextModel : TextModel {
                 currentCursorLineChunks.beforeCursor + currentCursorLineChunks.afterCursor.substring(1)
         }
 
-        println(textLines.stream()
+        /*println(textLines.stream()
             .map { s -> "'${s.replace(TextConstants.nonBreakingSpaceChar, ' ')}'" }
-            .collect(Collectors.joining(", ", "[", "]")))
+            .collect(Collectors.joining(", ", "[", "]")))*/
         println(cursor)
     }
 
@@ -125,9 +125,9 @@ class LineArrayTextModel : TextModel {
                 Cursor(newOffset, lineNumber, newCurrentLineOffset)
             }
 
-            println(textLines.stream()
+            /*println(textLines.stream()
                 .map { s -> "'${s.replace(TextConstants.nonBreakingSpaceChar, ' ')}'" }
-                .collect(Collectors.joining(", ", "[", "]")))
+                .collect(Collectors.joining(", ", "[", "]")))*/
             println(cursor)
 
             /**
