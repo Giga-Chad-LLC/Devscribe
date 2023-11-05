@@ -11,7 +11,7 @@ import kotlinx.coroutines.CoroutineScope
 import models.PinnedFileModel
 import models.text.Cursor
 
-class TextViewModel(coroutineScope: CoroutineScope, private val activeFileModel: PinnedFileModel) {
+class TextViewModel(coroutineScope: CoroutineScope, private var activeFileModel: PinnedFileModel) {
     val text: String
         get() {
             return activeFileModel.textModel.text
@@ -27,6 +27,15 @@ class TextViewModel(coroutineScope: CoroutineScope, private val activeFileModel:
         coroutineScope,
         TextViewModel::syncModelWithVFS
     )
+
+    /**
+     * Updates current active file model if provided pinned file model is not the same as current file
+     */
+    fun updateActiveFileModel(other: PinnedFileModel) {
+        if (activeFileModel.id != other.id) {
+            activeFileModel = other
+        }
+    }
 
     companion object {
         private fun syncModelWithVFS(fileToSyncWith: PinnedFileModel?) {

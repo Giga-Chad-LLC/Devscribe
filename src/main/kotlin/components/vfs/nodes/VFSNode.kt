@@ -8,7 +8,7 @@ abstract class VFSNode(
     private val vfs: VirtualFileSystem,
     private val filename: String,
     private val parent: VFSNode?,
-    private val id: Int,
+    val id: Int,
     var timestamp: FileTime
 ) {
 

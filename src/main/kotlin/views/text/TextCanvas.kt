@@ -226,6 +226,12 @@ fun BoxScope.TextCanvas(
     var previousCursorState = remember { Cursor(textViewModel.cursor) }
     val requester = remember { FocusRequester() }
 
+    /**
+     * Required to try to update pinned file model on each invocation because
+     * 'remember' of textViewModel does not recreate the object thus outdated pinned file model persists on the canvas.
+     */
+    textViewModel.updateActiveFileModel(activeFileModel)
+
     val canvasState = CanvasState(
         verticalScrollOffset = remember { mutableStateOf(0f) },
         horizontalScrollOffset = remember { mutableStateOf(0f) },

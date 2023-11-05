@@ -16,7 +16,7 @@ class FileTreeModel {
     }
 
 
-    inner class NodeModel (
+    inner class NodeModel(
         val file: VFSNode,
         val level: Int = 0 // determines the offset inside sidebar
     ) {

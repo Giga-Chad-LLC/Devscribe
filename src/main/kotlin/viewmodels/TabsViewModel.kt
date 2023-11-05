@@ -2,6 +2,7 @@ package viewmodels
 
 import common.TextConstants
 import components.vfs.commands.LoadFileFromDiskCommand
+import components.vfs.nodes.VFSFile
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import models.PinnedFileModel
@@ -14,24 +15,37 @@ class TabsViewModel(
 ) {
     val files: List<PinnedFileModel> = tabsModel.pinnedFiles
 
-    fun pin(file: PinnedFileModel) {
-        if (!tabsModel.containsPinnedFile(file)) {
-            tabsModel.addPinnedFile(file)
-            val vfs = file.virtualFile.getVirtualFileSystem()
+    fun pin(file: VFSFile) {
+        if (!tabsModel.containsFile(file)) {
+            val pinnedFileModel = tabsModel.add(file)
 
-            vfs.post(LoadFileFromDiskCommand(vfs, file.virtualFile) {
+            val vfs = pinnedFileModel.virtualFile.getVirtualFileSystem()
+
+            vfs.post(LoadFileFromDiskCommand(vfs, pinnedFileModel.virtualFile) {
                 println("VFS file loaded!")
                 viewScope.launch {
-                    file.textModel.text = file.virtualFile.data
+                    pinnedFileModel.textModel.text = pinnedFileModel.virtualFile.data
                     println("Text model synced with VFS file!")
                 }
             })
         }
+
+        // selecting pinned file
+        select(file)
     }
 
     fun unpin(fileModelId: UUID) {
         tabsModel.removePinnedFile(fileModelId)
     }
+
+    /**
+     * Activates tab with VFS file
+     */
+    fun select(file: VFSFile) {
+        val pinnedFileModel = tabsModel.get(file)
+        select(pinnedFileModel.id)
+    }
+
 
     /**
      * Activates tab with provided id
@@ -52,6 +66,7 @@ class TabsViewModel(
             throw IllegalStateException("File model with provided id $fileModelId not found")
         }
     }
+
 
     fun getActiveFile(): PinnedFileModel? {
         for (fileModel in tabsModel.pinnedFiles) {
