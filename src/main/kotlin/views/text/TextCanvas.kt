@@ -15,11 +15,12 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.DrawStyle
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.*
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import models.PinnedFileModel
@@ -28,7 +29,6 @@ import models.text.TextModel
 import viewmodels.TextViewModel
 import views.common.FontSettings
 import views.common.Settings
-import kotlin.math.max
 import kotlin.math.roundToInt
 
 
@@ -36,7 +36,7 @@ internal const val LINES_COUNT_VERTICAL_OFFSET = 5
 internal const val SYMBOLS_COUNT_HORIZONTAL_OFFSET = 5
 internal const val LINES_PANEL_RIGHT_PADDING = 10f
 internal const val LINES_PANEL_LEFT_PADDING = 40f
-internal const val LINES_PANEL_RIGHT_MARGIN = 8f
+internal const val TEXT_CANVAS_LEFT_MARGIN = 8f
 
 
 internal data class CanvasState(
@@ -235,6 +235,23 @@ private fun getSymbolSize(textMeasurer: TextMeasurer, fontSettings: FontSettings
 }
 
 
+@OptIn(ExperimentalTextApi::class)
+private fun determineLinesPanelSize(
+    textMeasurer: TextMeasurer,
+    canvasState: CanvasState,
+    settings: Settings,
+): Size {
+    val lineSymbolSize = getSymbolSize(textMeasurer, settings.editorSettings.linesPanel.fontSettings)
+    val maxLineNumber = canvasState.textModel.linesCount()
+
+    return Size(
+        // left & right paddings + width of the longest line number
+        LINES_PANEL_RIGHT_PADDING + maxLineNumber.toString().length * lineSymbolSize.width + LINES_PANEL_LEFT_PADDING,
+        // canvas width
+        canvasState.canvasSize.value.height.toFloat()
+    )
+}
+
 /**
  * Draws panel with line numbers.
  * @return Size of the drawn panel.
@@ -242,11 +259,11 @@ private fun getSymbolSize(textMeasurer: TextMeasurer, fontSettings: FontSettings
 @OptIn(ExperimentalTextApi::class)
 private fun DrawScope.drawLinesPanel(
     textMeasurer: TextMeasurer,
-    scrollOffset: Offset,
+    scrollOffsetY: Float,
     canvasState: CanvasState,
     cursor: Cursor,
     settings: Settings
-): Size {
+) {
     val linesPanelSettings = settings.editorSettings.linesPanel
 
     val lineSymbolSize = getSymbolSize(textMeasurer, linesPanelSettings.fontSettings)
@@ -260,21 +277,11 @@ private fun DrawScope.drawLinesPanel(
     val centeringOffsetX = (canvasState.symbolSize.width - lineSymbolSize.width) / 2
     var offsetY = (canvasState.symbolSize.height - lineSymbolSize.height) / 2
 
-    val linesPanelSize = Size(
-        // left & right paddings + width of the longest line number
-        LINES_PANEL_RIGHT_PADDING + maxLineNumber.toString().length * lineSymbolSize.width + LINES_PANEL_LEFT_PADDING,
-        // canvas width
-        canvasState.canvasSize.value.height.toFloat()
-    )
+    val linesPanelSize = determineLinesPanelSize(textMeasurer, canvasState, settings)
 
     /**
-     * Drawing lines panel and a split line on its right border
+     * Drawing a split line on the right border of the lines panel
      */
-    drawRect(
-        color = linesPanelSettings.backgroundColor,
-        topLeft = Offset.Zero,
-        size = linesPanelSize
-    )
     drawRect(
         color = linesPanelSettings.splitLineColor,
         topLeft = Offset(linesPanelSize.width - 1f, 0f),
@@ -301,18 +308,16 @@ private fun DrawScope.drawLinesPanel(
 
         // the translation makes the line numbers to be aligned by the smallest digit, i.e. digits grow from right to left
         val translationX = (maxLineNumber.toString().length - lineNumber.toString().length) * lineSymbolSize.width
-        val resultOffsetX = LINES_PANEL_RIGHT_PADDING + translationX + centeringOffsetX + scrollOffset.x
+        val resultOffsetX = LINES_PANEL_RIGHT_PADDING + translationX + centeringOffsetX /*+ scrollOffset.x*/
 
         // drawing line number
         drawText(
             measuredText,
-            topLeft = Offset(resultOffsetX, offsetY + scrollOffset.y)
+            topLeft = Offset(resultOffsetX, offsetY + scrollOffsetY)
         )
 
         offsetY += canvasState.symbolSize.height
     }
-
-    return linesPanelSize
 }
 
 
@@ -341,96 +346,105 @@ fun BoxScope.TextCanvas(
         canvasSize = remember { mutableStateOf(IntSize.Zero) },
         symbolSize = remember(settings.fontSettings) {
             getSymbolSize(textMeasurer, settings.fontSettings)
-            /*// TODO: might be incorrect
-            val style = TextStyle(
-                fontSize = settings.fontSettings.fontSize,
-                fontFamily = settings.fontSettings.fontFamily
-            )
-            val size = textMeasurer.measure(AnnotatedString("a"), style).size
-            Size(size.width.toFloat(), size.height.toFloat())*/
         },
         textModel = activeFileModel.textModel
     )
 
-    // println("textSymbolSize=${canvasState.symbolSize}")
-
     val verticalScrollState = canvasState.initializeVerticalScrollbar()
     val horizontalScrollState = canvasState.initializeHorizontalScrollbar()
 
-    Canvas(
-        modifier.then(
+    val linesPanelSize = determineLinesPanelSize(textMeasurer, canvasState, settings)
+
+    println("width_dp=${linesPanelSize.width.dp}, width=${linesPanelSize.width}")
+
+    Row(Modifier.fillMaxSize()) {
+        Canvas(
             Modifier
+                .background(settings.editorSettings.linesPanel.backgroundColor)
                 .clipToBounds()
-                .focusRequester(requester)
-                .focusable()
-                .onSizeChanged { canvasState.canvasSize.value = it }
-                .onClick { requester.requestFocus() }
+                // dividing by current density to make the width in dp match the actual width
+                .width((linesPanelSize.width / LocalDensity.current.density).dp)
+                .fillMaxHeight()
                 .scrollable(verticalScrollState, Orientation.Vertical)
-                .scrollable(horizontalScrollState, Orientation.Horizontal)
-        )
-    ) {
-        textViewModel.let {
-            val measuredText = textMeasurer.measure(
-                text = AnnotatedString(it.text),
-                style = TextStyle(
-                    color = Color.LightGray,
-                    fontSize = settings.fontSettings.fontSize,
-                    fontFamily = settings.fontSettings.fontFamily
-                )
-            )
-
-            val verticalOffset = canvasState.verticalScrollOffset.value
-            val horizontalOffset = canvasState.horizontalScrollOffset.value
-
-            if (previousCursorState.offset != it.cursor.offset) {
-                scrollHorizontallyOnCursorOutOfCanvasViewport(
-                    coroutineScope = coroutineScope,
-                    canvasState = canvasState,
-                    horizontalOffset = horizontalOffset,
-                    cursor = it.cursor,
-                    horizontalScrollState = horizontalScrollState,
-                )
-
-                scrollVerticallyOnCursorOutOfCanvasViewport(
-                    coroutineScope = coroutineScope,
-                    canvasState = canvasState,
-                    verticalOffset = verticalOffset,
-                    cursor = it.cursor,
-                    verticalScrollState = verticalScrollState,
-                )
-
-                previousCursorState = Cursor(it.cursor)
-            }
-
-            val linesPanelSize = drawLinesPanel(
+        ) {
+            drawLinesPanel(
                 textMeasurer = textMeasurer,
-                scrollOffset = Offset(-horizontalOffset, -verticalOffset),
+                scrollOffsetY = -canvasState.verticalScrollOffset.value,
                 canvasState = canvasState,
-                cursor = it.cursor,
+                cursor = textViewModel.cursor,
                 settings = settings,
             )
+        }
 
-            val translationX = -horizontalOffset + linesPanelSize.width + LINES_PANEL_RIGHT_MARGIN
-            val translationY = -verticalOffset
+        Box {
+            Canvas(
+                modifier.then(
+                    Modifier
+                        .clipToBounds()
+                        .focusRequester(requester)
+                        .focusable()
+                        .onSizeChanged { canvasState.canvasSize.value = it }
+                        .onClick { requester.requestFocus() }
+                        .scrollable(verticalScrollState, Orientation.Vertical)
+                        .scrollable(horizontalScrollState, Orientation.Horizontal)
+                )
+            ) {
+                textViewModel.let {
+                    val measuredText = textMeasurer.measure(
+                        text = AnnotatedString(it.text),
+                        style = TextStyle(
+                            color = Color.LightGray,
+                            fontSize = settings.fontSettings.fontSize,
+                            fontFamily = settings.fontSettings.fontFamily
+                        )
+                    )
 
-            // drawing text
-            drawText(
-                measuredText,
-                topLeft = Offset(translationX, translationY)
-            )
+                    val verticalOffset = canvasState.verticalScrollOffset.value
+                    val horizontalOffset = canvasState.horizontalScrollOffset.value
 
-            // drawing cursor
-            val cursor: Rect = measuredText.getCursorRect(it.cursor.offset)
-            drawRect(
-                color = Color.White,
-                topLeft = Offset(cursor.left + translationX, cursor.top + translationY),
-                size = cursor.size,
-                style = Stroke(2f)
-            )
+                    if (previousCursorState.offset != it.cursor.offset) {
+                        scrollHorizontallyOnCursorOutOfCanvasViewport(
+                            coroutineScope = coroutineScope,
+                            canvasState = canvasState,
+                            horizontalOffset = horizontalOffset,
+                            cursor = it.cursor,
+                            horizontalScrollState = horizontalScrollState,
+                        )
+
+                        scrollVerticallyOnCursorOutOfCanvasViewport(
+                            coroutineScope = coroutineScope,
+                            canvasState = canvasState,
+                            verticalOffset = verticalOffset,
+                            cursor = it.cursor,
+                            verticalScrollState = verticalScrollState,
+                        )
+
+                        previousCursorState = Cursor(it.cursor)
+                    }
+
+                    val translationX = -horizontalOffset + TEXT_CANVAS_LEFT_MARGIN
+                    val translationY = -verticalOffset
+
+                    // drawing text
+                    drawText(
+                        measuredText,
+                        topLeft = Offset(translationX, translationY)
+                    )
+
+                    // drawing cursor
+                    val cursor: Rect = measuredText.getCursorRect(it.cursor.offset)
+                    drawRect(
+                        color = Color.White,
+                        topLeft = Offset(cursor.left + translationX, cursor.top + translationY),
+                        size = cursor.size,
+                        style = Stroke(2f)
+                    )
+                }
+            }
+
+            // scrollbars
+            CanvasVerticalScrollbar(canvasState)
+            CanvasHorizontalScrollbar(canvasState)
         }
     }
-
-    // scrollbars
-    CanvasVerticalScrollbar(canvasState)
-    CanvasHorizontalScrollbar(canvasState)
 }
