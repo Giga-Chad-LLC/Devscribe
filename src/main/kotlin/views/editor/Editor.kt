@@ -425,6 +425,13 @@ fun Editor(
                     val translationX = -horizontalOffset + TEXT_CANVAS_LEFT_MARGIN
                     val translationY = -verticalOffset
 
+                    // drawing highlighter of cursored line
+                    drawRect(
+                        color = Color.DarkGray,
+                        topLeft = Offset(0f, it.cursor.lineNumber * canvasState.symbolSize.height + translationY),
+                        size = Size(canvasState.canvasSize.value.width.toFloat(), canvasState.symbolSize.height)
+                    )
+
                     // drawing text
                     drawText(
                         measuredText,
