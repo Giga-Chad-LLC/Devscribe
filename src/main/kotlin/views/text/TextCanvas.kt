@@ -46,7 +46,7 @@ private fun CanvasState.getMaxVerticalScrollOffset(): Float {
      *
      * Subtracting N from total lines count to make last N lines visible at the lowest position of vertical scroll
      */
-    val maxLinesNumber = textModel.linesCount() - LINES_COUNT_VERTICAL_OFFSET
+    val maxLinesNumber = (textModel.linesCount() - LINES_COUNT_VERTICAL_OFFSET).coerceAtLeast(0)
     return maxLinesNumber * symbolSize.height
 }
 
