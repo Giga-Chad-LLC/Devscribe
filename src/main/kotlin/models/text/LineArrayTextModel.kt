@@ -7,6 +7,7 @@ import androidx.compose.runtime.setValue
 import common.TextConstants
 import java.util.stream.Collectors
 
+// TODO: keep absolute offset for every line
 class LineArrayTextModel : TextModel {
     private val textLines = mutableStateListOf("")
 
@@ -265,8 +266,36 @@ class LineArrayTextModel : TextModel {
         }
     }
 
+    private fun checkLineIndex(lineIndex: Int) {
+        if (!(0 <= lineIndex && lineIndex < textLines.size)) {
+            throw IllegalArgumentException("Line index must be in range [0; ${textLines.size}), got $lineIndex")
+        }
+    }
+    override fun changeCursorPosition(lineIndex: Int, lineOffset: Int) {
+        checkLineIndex(lineIndex)
+
+        val cursoredLine = textLines[lineIndex]
+        if (!(0 <= lineOffset && lineOffset <= cursoredLine.length)) {
+            throw IllegalArgumentException("Line offset must be in range [0; ${cursoredLine.length}], got $lineOffset")
+        }
+
+        println("Cursored line: '${textLines[lineIndex]}'")
+
+        var absoluteOffset = lineOffset
+        for (i in 0 until lineIndex) {
+            absoluteOffset += textLines[i].length + System.lineSeparator().length
+        }
+
+        cursor = Cursor(absoluteOffset, lineIndex, lineOffset)
+    }
+
     override fun linesCount(): Int {
         return textLines.size
+    }
+
+    override fun lineLength(lineIndex: Int): Int {
+        checkLineIndex(lineIndex)
+        return textLines[lineIndex].length
     }
 
     override fun maxLineLength(): Int {

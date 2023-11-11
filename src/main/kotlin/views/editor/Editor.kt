@@ -16,6 +16,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.*
@@ -44,7 +45,7 @@ internal data class CanvasState(
     val horizontalScrollOffset: MutableState<Float>,
     val canvasSize: MutableState<IntSize>,
     val symbolSize: Size,
-    val textModel: TextModel,
+    val textViewModel: TextViewModel,
 )
 
 private fun CanvasState.getMaxVerticalScrollOffset(): Float {
@@ -53,7 +54,7 @@ private fun CanvasState.getMaxVerticalScrollOffset(): Float {
      *
      * Subtracting N from total lines count to make last N lines visible at the lowest position of vertical scroll
      */
-    val maxLinesNumber = (textModel.linesCount() - LINES_COUNT_VERTICAL_OFFSET).coerceAtLeast(0)
+    val maxLinesNumber = (textViewModel.textModel.linesCount() - LINES_COUNT_VERTICAL_OFFSET).coerceAtLeast(0)
     return maxLinesNumber * symbolSize.height
 }
 
@@ -63,7 +64,7 @@ private fun CanvasState.getMaxHorizontalScrollOffset(): Float {
      * between the viewport width and line width extended by SYMBOLS_COUNT_HORIZONTAL_OFFSET.
      * Otherwise, set max offset to 0.
      */
-    val maxLineOffset = textModel.maxLineLength() * symbolSize.width
+    val maxLineOffset = textViewModel.textModel.maxLineLength() * symbolSize.width
     val canvasWidth = canvasSize.value.width.toFloat()
 
     var maxHorizontalOffset = (maxLineOffset - canvasWidth).coerceAtLeast(0f)
@@ -86,6 +87,18 @@ private fun CanvasState.coerceHorizontalOffset(offset: Float): Float {
         .coerceAtMost(getMaxHorizontalScrollOffset())
 }
 
+/**
+ * Accepts canvas offset (e.g. offset of mouse click event) and maps it to (lineIndex, lineOffset) pair.
+ */
+private fun CanvasState.canvasOffsetToCursorPosition(offset: Offset) : Pair<Int, Int> {
+    val lineIndex = ((offset.y + verticalScrollOffset.value) / symbolSize.height)
+        .toInt().coerceAtMost(textViewModel.textModel.linesCount() - 1)
+
+    val lineOffset = ((offset.x - TEXT_CANVAS_LEFT_MARGIN) / symbolSize.width)
+        .roundToInt().coerceAtLeast(0).coerceAtMost(textViewModel.textModel.lineLength(lineIndex))
+
+    return lineIndex to lineOffset
+}
 
 @Composable
 private fun BoxScope.CanvasVerticalScrollbar(canvasState: CanvasState) {
@@ -242,7 +255,7 @@ private fun determineLinesPanelSize(
     settings: Settings,
 ): Size {
     val lineSymbolSize = getSymbolSize(textMeasurer, settings.editorSettings.linesPanel.fontSettings)
-    val maxLineNumber = canvasState.textModel.linesCount()
+    val maxLineNumber = canvasState.textViewModel.textModel.linesCount()
 
     return Size(
         // left & right paddings + width of the longest line number
@@ -267,7 +280,7 @@ private fun DrawScope.drawLinesPanel(
     val linesPanelSettings = settings.editorSettings.linesPanel
 
     val lineSymbolSize = getSymbolSize(textMeasurer, linesPanelSettings.fontSettings)
-    val maxLineNumber = canvasState.textModel.linesCount()
+    val maxLineNumber = canvasState.textViewModel.textModel.linesCount()
 
     /**
      * Starting with centering offsets that place the line number in the center of code symbol.
@@ -347,8 +360,10 @@ fun Editor(
         symbolSize = remember(settings.fontSettings) {
             getSymbolSize(textMeasurer, settings.fontSettings)
         },
-        textModel = activeFileModel.textModel
+        textViewModel = textViewModel
     )
+
+    println("canvasState: $canvasState")
 
     val verticalScrollState = canvasState.initializeVerticalScrollbar()
     val horizontalScrollState = canvasState.initializeHorizontalScrollbar()
@@ -385,6 +400,13 @@ fun Editor(
                         .focusable()
                         .onSizeChanged { canvasState.canvasSize.value = it }
                         .onClick { requester.requestFocus() }
+                        .pointerInput(Unit) {
+                            detectTapGestures(onPress = { offset ->
+                                // cursorPosition.value = editorState.setCursorByCodePosition(offset)
+                                val (lineIndex, lineOffset) = canvasState.canvasOffsetToCursorPosition(offset)
+                                canvasState.textViewModel.textModel.changeCursorPosition(lineIndex, lineOffset)
+                            })
+                        }
                         .scrollable(verticalScrollState, Orientation.Vertical)
                         .scrollable(horizontalScrollState, Orientation.Horizontal)
                 )

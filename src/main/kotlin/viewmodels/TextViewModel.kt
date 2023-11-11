@@ -10,8 +10,14 @@ import components.vfs.commands.SyncFileWithFrontendCommand
 import kotlinx.coroutines.CoroutineScope
 import models.PinnedFileModel
 import models.text.Cursor
+import models.text.TextModel
 
 class TextViewModel(coroutineScope: CoroutineScope, private var activeFileModel: PinnedFileModel) {
+    val textModel: TextModel
+        get() {
+            return activeFileModel.textModel
+        }
+
     val text: String
         get() {
             return activeFileModel.textModel.text
