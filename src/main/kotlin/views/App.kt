@@ -1,62 +1,112 @@
 package views
 
 import androidx.compose.desktop.ui.tooling.preview.Preview
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.MaterialTheme
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.material.Surface
+import androidx.compose.material.Text
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import components.resizable.SplitState
+import components.resizable.VerticallySplittable
+import components.vfs.OSVirtualFileSystem
+import viewmodels.FileTreeViewModel
 import viewmodels.ProjectViewModel
 import viewmodels.TabsViewModel
-import viewmodels.TextViewModel
+import views.common.CustomTheme
+import views.common.Fonts
+import views.common.Settings
+import views.filestree.FileTree
+import views.filestree.FileTreeLabel
 import views.tabs.TabsContainer
-import views.text.TextCanvas
+import views.editor.Editor
+import java.nio.file.Path
+
+
+class SidebarState {
+    var width by mutableStateOf(300.dp)
+    val minWidth =100.dp
+    val splitState = SplitState()
+}
 
 @Composable
 @Preview
-fun App(textViewModel: TextViewModel) {
-    val projectViewModel by remember { mutableStateOf(ProjectViewModel()) }
-    val tabsViewModel by remember { mutableStateOf(TabsViewModel(projectViewModel.project.tabsModel)) }
+fun App() {
+    val vfs = OSVirtualFileSystem(Path.of("C:/Users/Vladislav/Downloads/devscribe-project-folder"))
+    val coroutineScope = rememberCoroutineScope() // required to run the state updates on the same scope as components composed
+    val projectViewModel by remember { mutableStateOf(ProjectViewModel(vfs, coroutineScope)) }
+    val tabsViewModel by remember { mutableStateOf(TabsViewModel(projectViewModel.tabsModel, coroutineScope)) }
+    val fileTreeViewModel by remember { mutableStateOf(FileTreeViewModel(projectViewModel.fileTreeModel, tabsViewModel)) }
+    val settings by remember { mutableStateOf(Settings()) }
 
-    MaterialTheme {
-        Row(
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .weight(0.2f)
-                    .border(BorderStroke(1.dp, Color.Blue))
-            )
+    val sidebarState = remember { SidebarState() }
 
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .weight(0.7f)
-                    .border(BorderStroke(1.dp, Color.Blue)),
-                verticalArrangement = Arrangement.Top
+    MaterialTheme(
+        colors = CustomTheme.colors.material
+    ) {
+        Surface {
+            VerticallySplittable(
+                Modifier.fillMaxSize(),
+                sidebarState.splitState,
+                onResize = {
+                    val delta = it
+                    sidebarState.width = (sidebarState.width + delta).coerceAtLeast(sidebarState.minWidth)
+                }
             ) {
-                TabsContainer(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .border(BorderStroke(1.dp, Color.Green)),
-                    tabsViewModel = tabsViewModel
-                )
+                /**
+                 * Sidebar with project files
+                 */
+                Column(
+                    Modifier
+                        .fillMaxHeight()
+                        .width(sidebarState.width)
+                ) {
+                    FileTreeLabel()
+                    FileTree(fileTreeViewModel)
+                }
 
-                TextCanvas(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.LightGray)
-                        .border(BorderStroke(1.dp, Color.Red)),
-                    textViewModel = textViewModel,
-                )
+                /**
+                 * Editor with opened files
+                 */
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.Top
+                ) {
+                    TabsContainer(
+                        modifier = Modifier.fillMaxWidth().background(CustomTheme.colors.backgroundLight),
+                        settings = settings,
+                        tabsViewModel = tabsViewModel
+                    )
+
+                    val modifier = Modifier.fillMaxSize().background(CustomTheme.colors.backgroundDark)
+                    val activeFile = tabsViewModel.activeFile
+
+                    if (activeFile != null) {
+                        Editor(
+                            modifier = modifier,
+                            activeFileModel = activeFile,
+                            settings = settings,
+                        )
+                    }
+                    else {
+                        Box(
+                            modifier = modifier,
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = "Select file for modifications",
+                                fontFamily = Fonts.JetBrainsMono(),
+                                color = Color(1.0f, 1.0f, 1.0f, 0.6f),
+                                fontSize = 22.sp
+                            )
+                        }
+                    }
+                }
             }
         }
     }

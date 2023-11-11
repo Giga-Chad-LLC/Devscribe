@@ -6,36 +6,87 @@ import java.util.*
 import java.util.function.Consumer
 import kotlin.collections.ArrayList
 
+@OptIn(ExperimentalComposeUiApi::class)
 class KeyboardEventDispatcher private constructor() {
     private val subscribers: MutableMap<KeyboardAction, MutableList<EventHandler>> = EnumMap(KeyboardAction::class.java)
 
-    @OptIn(ExperimentalComposeUiApi::class)
+    private fun isSaveFileAction(event: KeyEvent): Boolean {
+        return (event.type == KeyEventType.KeyDown && event.key == Key.S && event.isCtrlPressed)
+    }
+
+    private fun isBackspaceAction(event: KeyEvent): Boolean {
+        return (event.type == KeyEventType.KeyDown && event.key == Key.Backspace)
+    }
+
+    private fun isNewlineAction(event: KeyEvent): Boolean {
+        return (event.type == KeyEventType.KeyDown && event.key == Key.Enter)
+    }
+
+    private fun isDirectionUpAction(event: KeyEvent): Boolean {
+        return (event.type == KeyEventType.KeyDown && event.key == Key.DirectionUp)
+    }
+
+    private fun isDirectionRightAction(event: KeyEvent): Boolean {
+        return (event.type == KeyEventType.KeyDown && event.key == Key.DirectionRight)
+    }
+
+    private fun isDirectionDownAction(event: KeyEvent): Boolean {
+        return (event.type == KeyEventType.KeyDown && event.key == Key.DirectionDown)
+    }
+
+    private fun isDirectionLeftAction(event: KeyEvent): Boolean {
+        return (event.type == KeyEventType.KeyDown && event.key == Key.DirectionLeft)
+    }
+
+    private fun isSpaceAction(event: KeyEvent): Boolean {
+        return (event.type == KeyEventType.KeyDown && event.key == Key.Spacebar)
+    }
+
+    private fun isDeleteAction(event: KeyEvent): Boolean {
+        return (event.type == KeyEventType.KeyDown && event.key == Key.Delete)
+    }
+
+    private fun isPrintableSymbolAction(event: KeyEvent): Boolean {
+        val ch = event.utf16CodePoint.toChar()
+        return event.type == KeyEventType.KeyDown && !ch.isISOControl() && !ch.isIdentifierIgnorable() && ch.isDefined()
+    }
+
     fun dispatch(event: KeyEvent): Boolean {
         var action: KeyboardAction? = null
 
-        if (event.type == KeyEventType.KeyDown) {
-            when (event.key) {
-                Key.Backspace -> action = KeyboardAction.BACKSPACE
-                Key.Enter -> action = KeyboardAction.NEWLINE
-                Key.DirectionUp -> action = KeyboardAction.DIRECTION_UP
-                Key.DirectionRight -> action = KeyboardAction.DIRECTION_RIGHT
-                Key.DirectionDown -> action = KeyboardAction.DIRECTION_DOWN
-                Key.DirectionLeft -> action = KeyboardAction.DIRECTION_LEFT
-                Key.Spacebar -> action = KeyboardAction.SPACE
-                Key.Delete -> action = KeyboardAction.DELETE
-                else -> {
-                    val ch: Char = event.utf16CodePoint.toChar()
-                    if (isPrintable(ch)) {
-                        action = KeyboardAction.PRINTABLE_SYMBOL
-                    }
-                    else {
-                        println("Provided unsupported character '${ch.code}' is non-printable")
-                    }
-                }
-            }
+        if (isSaveFileAction(event)) {
+            action = KeyboardAction.SAVE_FILE
+        }
+        if (isBackspaceAction(event)) {
+            action = KeyboardAction.BACKSPACE
+        }
+        else if (isNewlineAction(event)) {
+            action = KeyboardAction.NEWLINE
+        }
+        else if (isDirectionUpAction(event)) {
+            action = KeyboardAction.DIRECTION_UP
+        }
+        else if (isDirectionRightAction(event)) {
+            action = KeyboardAction.DIRECTION_RIGHT
+        }
+        else if (isDirectionDownAction(event)) {
+            action = KeyboardAction.DIRECTION_DOWN
+        }
+        else if (isDirectionLeftAction(event)) {
+            action = KeyboardAction.DIRECTION_LEFT
+        }
+        else if (isSpaceAction(event)) {
+            action = KeyboardAction.SPACE
+        }
+        else if (isDeleteAction(event)) {
+            action = KeyboardAction.DELETE
+        }
+        else if (isPrintableSymbolAction(event)) {
+            action = KeyboardAction.PRINTABLE_SYMBOL
         }
 
-        val actionHandled: Boolean = (action != null)
+        val actionHandled = (action != null)
+
         if (actionHandled && subscribers.containsKey(action)) {
             for (handler in subscribers[action]!!) {
                 handler.execute(event)
@@ -67,10 +118,6 @@ class KeyboardEventDispatcher private constructor() {
         }
     }
 
-    private fun isPrintable(ch: Char): Boolean {
-        return !ch.isISOControl() && !ch.isIdentifierIgnorable() && ch.isDefined()
-    }
-
     private object SingletonHelper {
         val INSTANCE = KeyboardEventDispatcher()
     }
@@ -82,6 +129,7 @@ class KeyboardEventDispatcher private constructor() {
 
 
     enum class KeyboardAction {
+        SAVE_FILE,
         BACKSPACE,
         NEWLINE,
         DIRECTION_UP,
@@ -90,7 +138,7 @@ class KeyboardEventDispatcher private constructor() {
         DIRECTION_LEFT,
         SPACE,
         DELETE,
-        PRINTABLE_SYMBOL
+        PRINTABLE_SYMBOL,
     }
 
     data class SubscriptionId(private val uuid: UUID? = UUID.randomUUID())
