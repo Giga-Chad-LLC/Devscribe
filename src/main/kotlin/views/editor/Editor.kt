@@ -22,11 +22,11 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.*
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import common.ceilToInt
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import models.PinnedFileModel
 import models.text.Cursor
-import models.text.TextModel
 import viewmodels.TextViewModel
 import views.common.FontSettings
 import views.common.Settings
@@ -98,6 +98,28 @@ private fun CanvasState.canvasOffsetToCursorPosition(offset: Offset) : Pair<Int,
         .roundToInt().coerceAtLeast(0).coerceAtMost(textViewModel.textModel.lineLength(lineIndex))
 
     return lineIndex to lineOffset
+}
+
+private fun CanvasState.viewportLinesRange(): Pair<Int, Int> {
+    val startOffset = Offset(horizontalScrollOffset.value, verticalScrollOffset.value)
+    val endOffset = Offset(
+        horizontalScrollOffset.value + canvasSize.value.width,
+        verticalScrollOffset.value + canvasSize.value.height
+    )
+
+    val startLineIndex = (startOffset.y / symbolSize.height)
+        .toInt().coerceAtMost(textViewModel.textModel.linesCount() - 1)
+
+    val endLineIndex = ((endOffset.y / symbolSize.height).ceilToInt())
+        .coerceAtMost(textViewModel.textModel.linesCount())
+
+    return startLineIndex to endLineIndex
+}
+private fun CanvasState.calculateViewportVisibleText(): String {
+    val (startLineIndex, endLineIndex) = viewportLinesRange()
+    println("startLineIndex=$startLineIndex, endLineIndex=$endLineIndex")
+
+    return textViewModel.textModel.textInLinesRange(startLineIndex, endLineIndex)
 }
 
 @Composable
@@ -216,6 +238,7 @@ private fun scrollVerticallyOnCursorOutOfCanvasViewport(
      *
      * Note that this is not the case for horizontal movements.
      */
+    // TODO: replace with height.ceilToInt()
     var roundedSymbolHeight = canvasState.symbolSize.height.roundToInt()
     roundedSymbolHeight = roundedSymbolHeight.let {
         it + if ((it.toFloat() < canvasState.symbolSize.height)) 1 else 0
@@ -346,6 +369,11 @@ fun Editor(
     val textViewModel by remember { mutableStateOf(TextViewModel(coroutineScope, activeFileModel)) }
     var previousCursorState = remember { Cursor(textViewModel.cursor) }
     val requester = remember { FocusRequester() }
+    val editorTextStyle = remember { TextStyle(
+        color = Color.LightGray,
+        fontSize = settings.fontSettings.fontSize,
+        fontFamily = settings.fontSettings.fontFamily
+    ) }
 
     /**
      * Required to try to update pinned file model on each invocation because
@@ -363,16 +391,19 @@ fun Editor(
         textViewModel = textViewModel
     )
 
-    println("canvasState: $canvasState")
+    // println("canvasState: $canvasState")
 
     val verticalScrollState = canvasState.initializeVerticalScrollbar()
     val horizontalScrollState = canvasState.initializeHorizontalScrollbar()
 
     val linesPanelSize = determineLinesPanelSize(textMeasurer, canvasState, settings)
 
-    println("width_dp=${linesPanelSize.width.dp}, width=${linesPanelSize.width}")
+    // println("width_dp=${linesPanelSize.width.dp}, width=${linesPanelSize.width}")
 
     Row(Modifier.fillMaxSize()) {
+        /**
+         * Drawing lines panel (panel that contains lines numbers)
+         */
         Canvas(
             Modifier
                 .background(settings.editorSettings.linesPanel.backgroundColor)
@@ -391,6 +422,9 @@ fun Editor(
             )
         }
 
+        /**
+         * Drawing canvas with text
+         */
         Box {
             Canvas(
                 modifier.then(
@@ -402,7 +436,6 @@ fun Editor(
                         .onClick { requester.requestFocus() }
                         .pointerInput(Unit) {
                             detectTapGestures(onPress = { offset ->
-                                // cursorPosition.value = editorState.setCursorByCodePosition(offset)
                                 val (lineIndex, lineOffset) = canvasState.canvasOffsetToCursorPosition(offset)
                                 canvasState.textViewModel.textModel.changeCursorPosition(lineIndex, lineOffset)
                             })
@@ -412,18 +445,10 @@ fun Editor(
                 )
             ) {
                 textViewModel.let {
-                    val measuredText = textMeasurer.measure(
-                        text = AnnotatedString(it.text),
-                        style = TextStyle(
-                            color = Color.LightGray,
-                            fontSize = settings.fontSettings.fontSize,
-                            fontFamily = settings.fontSettings.fontFamily
-                        )
-                    )
-
                     val verticalOffset = canvasState.verticalScrollOffset.value
                     val horizontalOffset = canvasState.horizontalScrollOffset.value
 
+                    // scrolling on cursor getting out of viewport
                     if (previousCursorState.offset != it.cursor.offset) {
                         scrollHorizontallyOnCursorOutOfCanvasViewport(
                             coroutineScope = coroutineScope,
@@ -455,19 +480,37 @@ fun Editor(
                     )
 
                     // drawing text
+                    val (startLineIndex, endLineIndex) = canvasState.viewportLinesRange()
+                    val viewportVisibleText = canvasState.calculateViewportVisibleText()
+
+                    val measuredText = textMeasurer.measure(
+                        text = AnnotatedString(viewportVisibleText),
+                        style = editorTextStyle
+                    )
                     drawText(
                         measuredText,
-                        topLeft = Offset(translationX, translationY)
+                        topLeft = Offset(translationX, translationY + startLineIndex * canvasState.symbolSize.height)
                     )
 
                     // drawing cursor
-                    val cursor: Rect = measuredText.getCursorRect(it.cursor.offset)
-                    drawRect(
-                        color = Color.White,
-                        topLeft = Offset(cursor.left + translationX, cursor.top + translationY),
-                        size = cursor.size,
-                        style = Stroke(2f)
-                    )
+                    if (it.cursor.lineNumber in startLineIndex until endLineIndex) {
+                        val cursorOffset =
+                            textViewModel.textModel.totalOffsetOfLine(it.cursor.lineNumber) +
+                                    it.cursor.currentLineOffset - textViewModel.textModel.totalOffsetOfLine(startLineIndex)
+                        println("cursorOffset=$cursorOffset, cursorLine=${it.cursor.lineNumber}, " +
+                                "cursorLineOffset=${it.cursor.currentLineOffset}")
+
+                        val cursor: Rect = measuredText.getCursorRect(cursorOffset/*it.cursor.offset*/)
+                        drawRect(
+                            color = Color.White,
+                            topLeft = Offset(
+                                cursor.left + translationX,
+                                cursor.top + translationY + startLineIndex * canvasState.symbolSize.height
+                            ),
+                            size = cursor.size,
+                            style = Stroke(2f)
+                        )
+                    }
                 }
             }
 
