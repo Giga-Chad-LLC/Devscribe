@@ -15,13 +15,7 @@ class LineArrayTextModel : TextModel {
         get() {
             return linesToText(textLines.toList())
         }
-        /*set(data) {
-            cursor = Cursor(0, 0, 0)
-            textLines.clear()
-            textLines.add("")
-            insert(data.replace(' ', TextConstants.nonBreakingSpaceChar))
-        }
-    */
+
     override var cursor by mutableStateOf(Cursor(0, 0, 0))
 
     private data class CurrentCursorLineChunks(val beforeCursor: String, val afterCursor: String)
