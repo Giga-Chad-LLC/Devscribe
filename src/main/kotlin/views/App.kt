@@ -84,16 +84,14 @@ fun App() {
                     )
 
                     val modifier = Modifier.fillMaxSize().background(CustomTheme.colors.backgroundDark)
-                    val activeFile = tabsViewModel.getActiveFile()
+                    val activeFile = tabsViewModel.activeFile
 
                     if (activeFile != null) {
-                        Box {
-                            Editor(
-                                modifier = modifier,
-                                activeFileModel = activeFile,
-                                settings = settings,
-                            )
-                        }
+                        Editor(
+                            modifier = modifier,
+                            activeFileModel = activeFile,
+                            settings = settings,
+                        )
                     }
                     else {
                         Box(

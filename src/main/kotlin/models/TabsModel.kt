@@ -13,6 +13,15 @@ class TabsModel {
         return pinnedFile
     }
 
+    fun indexOf(id: UUID): Int {
+        for (index in pinnedFiles.indices) {
+            if (pinnedFiles[index].id == id) {
+                return index
+            }
+        }
+        return -1
+    }
+
     fun removePinnedFile(id: UUID): Boolean {
         return pinnedFiles.removeIf { file -> file.id == id }
     }

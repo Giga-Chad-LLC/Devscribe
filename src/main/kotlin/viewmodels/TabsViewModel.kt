@@ -1,6 +1,9 @@
 package viewmodels
 
-import common.TextConstants
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import common.kthBeforeIndex
 import components.vfs.commands.LoadFileFromDiskCommand
 import components.vfs.nodes.VFSFile
 import kotlinx.coroutines.CoroutineScope
@@ -9,15 +12,19 @@ import models.PinnedFileModel
 import models.TabsModel
 import java.util.*
 
+
 class TabsViewModel(
     private val tabsModel: TabsModel,
     private val viewScope: CoroutineScope
 ) {
     val files: List<PinnedFileModel> = tabsModel.pinnedFiles
+    var activeFile by mutableStateOf<PinnedFileModel?>(null)
 
     fun pin(file: VFSFile) {
         if (!tabsModel.containsFile(file)) {
             val pinnedFileModel = tabsModel.add(file)
+            // selecting pinned file
+            select(file)
 
             val vfs = pinnedFileModel.virtualFile.getVirtualFileSystem()
 
@@ -29,19 +36,31 @@ class TabsViewModel(
                 }
             })
         }
-
-        // selecting pinned file
-        select(file)
+        else {
+            // selecting pinned file
+            select(file)
+        }
     }
 
     fun unpin(fileModelId: UUID) {
+        if (activeFile?.id == fileModelId) {
+            var newActiveFile: PinnedFileModel? = null
+
+            val index = tabsModel.indexOf(fileModelId)
+            if (index != -1 && tabsModel.pinnedFiles.size > 1) {
+                newActiveFile = tabsModel.pinnedFiles.kthBeforeIndex(index, 1)
+            }
+
+            activeFile = newActiveFile
+        }
+
         tabsModel.removePinnedFile(fileModelId)
     }
 
     /**
      * Activates tab with VFS file
      */
-    fun select(file: VFSFile) {
+    private fun select(file: VFSFile) {
         val pinnedFileModel = tabsModel.get(file)
         select(pinnedFileModel.id)
     }
@@ -54,26 +73,24 @@ class TabsViewModel(
         var selected = false
         for (fileModel in tabsModel.pinnedFiles) {
             if (fileModelId == fileModel.id) {
-                fileModel.activate()
+                activeFile = fileModel
                 selected = true
-            }
-            else {
-                fileModel.deactivate()
+                break
             }
         }
 
         if (!selected) {
-            throw IllegalStateException("File model with provided id $fileModelId not found")
+            throw IllegalStateException("File model with provided id '$fileModelId' not found")
         }
     }
 
 
-    fun getActiveFile(): PinnedFileModel? {
+    /*fun getActiveFile(): PinnedFileModel? {
         for (fileModel in tabsModel.pinnedFiles) {
             if (fileModel.active) {
                 return fileModel
             }
         }
         return null
-    }
+    }*/
 }

@@ -14,7 +14,7 @@ class PinnedFileModel(
     val virtualFile: VFSFile
 ) {
     var id: UUID = UUID.randomUUID()
-    var active by mutableStateOf(false)
+
     val filename: String
         get() {
             val rwlock = GlobalReadWriteLock.getInstance()
@@ -30,16 +30,6 @@ class PinnedFileModel(
     val textModel: TextModel by mutableStateOf(LineArrayTextModel())
 
     override fun toString(): String {
-        return "FileModel[active=$active, virtualFile='$virtualFile']"
-    }
-
-    fun activate() {
-        // TODO: subscribe for key events via dispatcher
-        active = true
-    }
-
-    fun deactivate() {
-        // TODO: unsubscribe of key events via dispatcher
-        active = false
+        return "FileModel[id='$id'; virtualFile='$virtualFile']"
     }
 }
