@@ -299,7 +299,10 @@ private fun DrawScope.drawLinesPanel(
     val linesPanelSettings = settings.editorSettings.linesPanel
 
     val lineSymbolSize = getSymbolSize(textMeasurer, linesPanelSettings.fontSettings)
-    val maxLineNumber = canvasState.textViewModel.textModel.linesCount()
+    val (startLineIndex, endLineIndex) = canvasState.viewportLinesRange()
+
+    val startLineNumber = startLineIndex + 1
+    val maxLineNumber = endLineIndex
 
     /**
      * Starting with centering offsets that place the line number in the center of code symbol.
@@ -307,7 +310,10 @@ private fun DrawScope.drawLinesPanel(
      * Assuming that font size of line number <= font size of code symbol.
      */
     val centeringOffsetX = (canvasState.symbolSize.width - lineSymbolSize.width) / 2
-    var offsetY = (canvasState.symbolSize.height - lineSymbolSize.height) / 2
+    val centeringOffsetY = (canvasState.symbolSize.height - lineSymbolSize.height) / 2
+
+    // offsetY starts from the offset of scrolled up lines (i.e. first 'startLineIndex' line)
+    var offsetY = centeringOffsetY + startLineIndex * canvasState.symbolSize.height
 
     val linesPanelSize = determineLinesPanelSize(textMeasurer, canvasState, settings)
 
@@ -323,7 +329,7 @@ private fun DrawScope.drawLinesPanel(
     /**
      * Drawing lines numbers
      */
-    for (lineNumber in 1 .. maxLineNumber) {
+    for (lineNumber in startLineNumber .. maxLineNumber) {
         // if current line is under cursor lighten it
         val color = if (cursor.lineNumber + 1 == lineNumber)
                     linesPanelSettings.cursoredLineFontColor else linesPanelSettings.fontSettings.fontColor
@@ -365,11 +371,13 @@ fun Editor(
     val textViewModel by remember { mutableStateOf(TextViewModel(coroutineScope, activeFileModel)) }
     var previousCursorState = remember { Cursor(textViewModel.cursor) }
     val requester = remember { FocusRequester() }
-    val editorTextStyle = remember { TextStyle(
-        color = Color.LightGray,
-        fontSize = settings.fontSettings.fontSize,
-        fontFamily = settings.fontSettings.fontFamily
-    ) }
+    val editorTextStyle = remember {
+        TextStyle(
+            color = Color.LightGray,
+            fontSize = settings.fontSettings.fontSize,
+            fontFamily = settings.fontSettings.fontFamily
+        )
+    }
 
     /**
      * Required to try to update pinned file model on each invocation because
