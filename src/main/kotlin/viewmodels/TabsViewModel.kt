@@ -31,7 +31,7 @@ class TabsViewModel(
             vfs.post(LoadFileFromDiskCommand(vfs, pinnedFileModel.virtualFile) {
                 println("VFS file loaded!")
                 viewScope.launch {
-                    pinnedFileModel.textModel.text = pinnedFileModel.virtualFile.data
+                    pinnedFileModel.textModel.install(pinnedFileModel.virtualFile.data)
                     println("Text model synced with VFS file!")
                 }
             })

@@ -12,3 +12,8 @@ fun <T> List<T>.kthBeforeIndex(index: Int, k: Int): T {
     val nextIndex = (index - k + size) % size
     return this[nextIndex]
 }
+
+fun Float.ceilToInt(): Int {
+    val value = this
+    return value.toInt() + (if (value > value.toInt().toFloat()) 1 else 0)
+}
