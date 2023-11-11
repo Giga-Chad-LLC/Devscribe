@@ -19,14 +19,19 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFontFamilyResolver
 import androidx.compose.ui.text.*
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.platform.FontLoadResult
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import common.TextConstants
 import common.ceilToInt
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import models.PinnedFileModel
 import models.text.Cursor
+import org.jetbrains.skia.Font
 import viewmodels.TextViewModel
 import views.common.FontSettings
 import views.common.Settings
@@ -38,7 +43,6 @@ internal const val SYMBOLS_COUNT_HORIZONTAL_OFFSET = 5
 internal const val LINES_PANEL_RIGHT_PADDING = 10f
 internal const val LINES_PANEL_LEFT_PADDING = 40f
 internal const val TEXT_CANVAS_LEFT_MARGIN = 8f
-
 
 internal data class CanvasState(
     val verticalScrollOffset: MutableState<Float>,
@@ -94,7 +98,10 @@ private fun CanvasState.canvasOffsetToCursorPosition(offset: Offset) : Pair<Int,
     val lineIndex = ((offset.y + verticalScrollOffset.value) / symbolSize.height)
         .toInt().coerceAtMost(textViewModel.textModel.linesCount() - 1)
 
-    val lineOffset = ((offset.x - TEXT_CANVAS_LEFT_MARGIN) / symbolSize.width)
+    println("symbolWidth=${symbolSize.width}")
+    println("lineOffsetFloat=${(offset.x + horizontalScrollOffset.value - TEXT_CANVAS_LEFT_MARGIN) / symbolSize.width}")
+
+    val lineOffset = ((offset.x + horizontalScrollOffset.value - TEXT_CANVAS_LEFT_MARGIN) / symbolSize.width)
         .roundToInt().coerceAtLeast(0).coerceAtMost(textViewModel.textModel.lineLength(lineIndex))
 
     return lineIndex to lineOffset
@@ -115,6 +122,7 @@ private fun CanvasState.viewportLinesRange(): Pair<Int, Int> {
 
     return startLineIndex to endLineIndex
 }
+
 private fun CanvasState.calculateViewportVisibleText(): String {
     val (startLineIndex, endLineIndex) = viewportLinesRange()
     println("startLineIndex=$startLineIndex, endLineIndex=$endLineIndex")
@@ -141,7 +149,6 @@ private fun BoxScope.CanvasVerticalScrollbar(canvasState: CanvasState) {
         Modifier.align(Alignment.CenterEnd)
     )
 }
-
 
 @Composable
 private fun BoxScope.CanvasHorizontalScrollbar(canvasState: CanvasState) {
@@ -253,27 +260,49 @@ private fun scrollVerticallyOnCursorOutOfCanvasViewport(
 
 
 /**
- * @return The width and height of a symbol measured by TextMeasurer with respect to its font settings.
+ * textMeasurer.measure("x").width (or .multiParagraph.width) is incorrect.
+ * But skia multiplied by current density counts the symbol width correctly, but the height calculated by skia is incorrect.
+ *
+ * Thus, here width is calculated via skia, and height is calculated via TextMeasurer.
+ * Recalculation occurs only on font size change, therefore it should not impact performance.
+ *
+ * @return The width and height of a symbol with respect to its font settings.
  */
 @OptIn(ExperimentalTextApi::class)
-private fun getSymbolSize(textMeasurer: TextMeasurer, fontSettings: FontSettings): Size {
-    // TODO: might be incorrect
+private fun getSymbolSize(
+    fontFamilyResolver: FontFamily.Resolver,
+    textMeasurer: TextMeasurer,
+    fontSettings: FontSettings,
+    density: Float
+): Size {
+    val fontLoadResult = fontFamilyResolver.resolve(fontSettings.fontFamily).value as FontLoadResult
     val style = TextStyle(
         fontSize = fontSettings.fontSize,
         fontFamily = fontSettings.fontFamily
     )
-    val size = textMeasurer.measure(AnnotatedString("a"), style).size
-    return Size(size.width.toFloat(), size.height.toFloat())
+
+    val width = Font(fontLoadResult.typeface, fontSettings.fontSize.value).measureTextWidth("a") * density
+    val height = textMeasurer.measure(AnnotatedString("a"), style).size.height
+
+    return Size(width, height.toFloat())
 }
 
 
 @OptIn(ExperimentalTextApi::class)
 private fun determineLinesPanelSize(
+    fontFamilyResolver: FontFamily.Resolver,
     textMeasurer: TextMeasurer,
     canvasState: CanvasState,
     settings: Settings,
+    density: Float
 ): Size {
-    val lineSymbolSize = getSymbolSize(textMeasurer, settings.editorSettings.linesPanel.fontSettings)
+    val lineSymbolSize = getSymbolSize(
+        fontFamilyResolver,
+        textMeasurer,
+        settings.editorSettings.linesPanel.fontSettings,
+        density
+    )
+
     val maxLineNumber = canvasState.textViewModel.textModel.linesCount()
 
     return Size(
@@ -290,15 +319,23 @@ private fun determineLinesPanelSize(
  */
 @OptIn(ExperimentalTextApi::class)
 private fun DrawScope.drawLinesPanel(
+    fontFamilyResolver: FontFamily.Resolver,
     textMeasurer: TextMeasurer,
     scrollOffsetY: Float,
     canvasState: CanvasState,
     cursor: Cursor,
-    settings: Settings
+    settings: Settings,
+    density: Float
 ) {
     val linesPanelSettings = settings.editorSettings.linesPanel
 
-    val lineSymbolSize = getSymbolSize(textMeasurer, linesPanelSettings.fontSettings)
+    val lineSymbolSize = getSymbolSize(
+        fontFamilyResolver,
+        textMeasurer,
+        linesPanelSettings.fontSettings,
+        density,
+    )
+
     val (startLineIndex, endLineIndex) = canvasState.viewportLinesRange()
 
     val startLineNumber = startLineIndex + 1
@@ -312,10 +349,18 @@ private fun DrawScope.drawLinesPanel(
     val centeringOffsetX = (canvasState.symbolSize.width - lineSymbolSize.width) / 2
     val centeringOffsetY = (canvasState.symbolSize.height - lineSymbolSize.height) / 2
 
-    // offsetY starts from the offset of scrolled up lines (i.e. first 'startLineIndex' line)
+    /**
+     * offsetY starts from the offset of scrolled up lines (i.e. first 'startLineIndex' line)
+     */
     var offsetY = centeringOffsetY + startLineIndex * canvasState.symbolSize.height
 
-    val linesPanelSize = determineLinesPanelSize(textMeasurer, canvasState, settings)
+    val linesPanelSize = determineLinesPanelSize(
+        fontFamilyResolver,
+        textMeasurer,
+        canvasState,
+        settings,
+        density,
+    )
 
     /**
      * Drawing a split line on the right border of the lines panel
@@ -359,6 +404,22 @@ private fun DrawScope.drawLinesPanel(
 }
 
 
+/**
+ * Handles mouse click on the canvas by changing cursor position
+ */
+private fun Modifier.changeCursorOnMouseClick(canvasState: CanvasState): Modifier {
+    return this.then(
+        Modifier
+            .pointerInput(Unit) {
+                detectTapGestures(onPress = { offset ->
+                    val (lineIndex, lineOffset) = canvasState.canvasOffsetToCursorPosition(offset)
+                    canvasState.textViewModel.textModel.changeCursorPosition(lineIndex, lineOffset)
+                })
+            }
+    )
+}
+
+
 @OptIn(ExperimentalTextApi::class, ExperimentalFoundationApi::class)
 @Composable
 fun Editor(
@@ -385,12 +446,15 @@ fun Editor(
      */
     textViewModel.updateActiveFileModel(activeFileModel)
 
+    val fontFamilyResolver = LocalFontFamilyResolver.current
+    val density = LocalDensity.current.density
+
     val canvasState = CanvasState(
         verticalScrollOffset = remember { mutableStateOf(0f) },
         horizontalScrollOffset = remember { mutableStateOf(0f) },
         canvasSize = remember { mutableStateOf(IntSize.Zero) },
         symbolSize = remember(settings.fontSettings) {
-            getSymbolSize(textMeasurer, settings.fontSettings)
+            getSymbolSize(fontFamilyResolver, textMeasurer, settings.fontSettings, density)
         },
         textViewModel = textViewModel
     )
@@ -400,7 +464,13 @@ fun Editor(
     val verticalScrollState = canvasState.initializeVerticalScrollbar()
     val horizontalScrollState = canvasState.initializeHorizontalScrollbar()
 
-    val linesPanelSize = determineLinesPanelSize(textMeasurer, canvasState, settings)
+    val linesPanelSize = determineLinesPanelSize(
+        fontFamilyResolver,
+        textMeasurer,
+        canvasState,
+        settings,
+        density
+    )
 
     // println("width_dp=${linesPanelSize.width.dp}, width=${linesPanelSize.width}")
 
@@ -418,11 +488,13 @@ fun Editor(
                 .scrollable(verticalScrollState, Orientation.Vertical)
         ) {
             drawLinesPanel(
+                fontFamilyResolver = fontFamilyResolver,
                 textMeasurer = textMeasurer,
                 scrollOffsetY = -canvasState.verticalScrollOffset.value,
                 canvasState = canvasState,
                 cursor = textViewModel.cursor,
                 settings = settings,
+                density = density,
             )
         }
 
@@ -438,12 +510,7 @@ fun Editor(
                         .focusable()
                         .onSizeChanged { canvasState.canvasSize.value = it }
                         .onClick { requester.requestFocus() }
-                        .pointerInput(Unit) {
-                            detectTapGestures(onPress = { offset ->
-                                val (lineIndex, lineOffset) = canvasState.canvasOffsetToCursorPosition(offset)
-                                canvasState.textViewModel.textModel.changeCursorPosition(lineIndex, lineOffset)
-                            })
-                        }
+                        .changeCursorOnMouseClick(canvasState)
                         .scrollable(verticalScrollState, Orientation.Vertical)
                         .scrollable(horizontalScrollState, Orientation.Horizontal)
                 )
@@ -483,7 +550,7 @@ fun Editor(
                         size = Size(canvasState.canvasSize.value.width.toFloat(), canvasState.symbolSize.height)
                     )
 
-                    // drawing text
+                    // drawing text that is visible in the viewport
                     val (startLineIndex, endLineIndex) = canvasState.viewportLinesRange()
                     val viewportVisibleText = canvasState.calculateViewportVisibleText()
 
@@ -496,7 +563,7 @@ fun Editor(
                         topLeft = Offset(translationX, translationY + startLineIndex * canvasState.symbolSize.height)
                     )
 
-                    // drawing cursor
+                    // drawing cursor if it is in the viewport
                     if (it.cursor.lineNumber in startLineIndex until endLineIndex) {
                         val cursorOffset =
                             textViewModel.textModel.totalOffsetOfLine(it.cursor.lineNumber) +
