@@ -238,12 +238,8 @@ private fun scrollVerticallyOnCursorOutOfCanvasViewport(
      *
      * Note that this is not the case for horizontal movements.
      */
-    // TODO: replace with height.ceilToInt()
-    var roundedSymbolHeight = canvasState.symbolSize.height.roundToInt()
-    roundedSymbolHeight = roundedSymbolHeight.let {
-        it + if ((it.toFloat() < canvasState.symbolSize.height)) 1 else 0
-    }
-    val truncatedViewportHeight = canvasState.canvasSize.value.height - roundedSymbolHeight
+    val ceiledSymbolHeight = canvasState.symbolSize.height.ceilToInt()
+    val truncatedViewportHeight = canvasState.canvasSize.value.height - ceiledSymbolHeight
 
     scrollOnCursorOutOfCanvasViewport(
         coroutineScope = coroutineScope,
