@@ -98,7 +98,7 @@ class TextViewModel(coroutineScope: CoroutineScope, private var activeFileModel:
     }
 
     fun whitespace() {
-        activeFileModel.textModel.insert(TextConstants.nonBreakingSpaceChar)
+        activeFileModel.textModel.insert(' ')
         debounceHandler.run(activeFileModel)
     }
 

@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import common.TextConstants
 import java.util.stream.Collectors
+import kotlin.math.max
 
 // TODO: keep absolute offset for every line
 class LineArrayTextModel : TextModel {
@@ -109,7 +110,7 @@ class LineArrayTextModel : TextModel {
     }
 
     override fun insert(text: String) {
-        val chunks = text.split(System.lineSeparator())
+        val chunks = text.replace(' ', TextConstants.nonBreakingSpaceChar).split(System.lineSeparator())
         val textEndsWithLineSeparator = text.endsWith(System.lineSeparator())
 
         for (index in chunks.indices) {
@@ -143,7 +144,7 @@ class LineArrayTextModel : TextModel {
     }
 
     override fun install(text: String) {
-        val lines = text.split(System.lineSeparator())
+        val lines = text.replace(' ', TextConstants.nonBreakingSpaceChar).split(System.lineSeparator())
         textLines.clear()
 
         if (lines.isEmpty()) {
@@ -171,10 +172,10 @@ class LineArrayTextModel : TextModel {
                 newCurrentLineOffset = textLines[lineNumber - 1].length
             }
             else if (currentLineOffset > 0) {
+                // moving one symbol left
                 newOffset = offset - 1
                 newLineNumber = lineNumber
                 newCurrentLineOffset = currentLineOffset - 1
-                // moving one symbol left
             }
             else {
                 // staying at offset 0
