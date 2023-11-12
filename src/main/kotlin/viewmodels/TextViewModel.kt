@@ -112,6 +112,10 @@ class TextViewModel(coroutineScope: CoroutineScope, private var activeFileModel:
         debounceHandler.run(activeFileModel)
     }
 
+    fun forwardToNextWord() {
+        activeFileModel.textModel.forwardToNextWord()
+    }
+
     init {
         // TODO: remove dispatcher from TextModelView (remove it completely, I guess)
         val dispatcher = KeyboardEventDispatcher.getInstance()

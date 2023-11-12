@@ -470,7 +470,13 @@ private fun Modifier.handleKeyboardInput(canvasState: CanvasState): Modifier {
                     consumed = true
                 }
                 else if (keyEvent.type == KeyEventType.KeyDown && keyEvent.key == Key.DirectionRight) {
-                    textViewModel.directionRight()
+                    if (keyEvent.isCtrlPressed) {
+                        // CTRL + → forwards cursor to the end of next word
+                        textViewModel.forwardToNextWord()
+                    }
+                    else {
+                        textViewModel.directionRight()
+                    }
                     consumed = true
                 }
                 else if (keyEvent.type == KeyEventType.KeyDown && keyEvent.key == Key.DirectionDown) {

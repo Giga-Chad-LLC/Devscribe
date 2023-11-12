@@ -188,6 +188,47 @@ class LineArrayTextModel : TextModel {
         }
     }
 
+    override fun forwardToNextWord() {
+        val chunk = splitCurrentCursorLine().afterCursor
+
+        cursor = cursor.run {
+            val newOffset: Int
+            val newLineNumber: Int
+            val newCurrentLineOffset: Int
+
+            val whitespace = TextConstants.nonBreakingSpaceChar
+
+            val whitespaceCountBeforeFirstWord = chunk
+                // dropping letters after a starting sequence of consecutive whitespaces
+                .dropLast(chunk.length - max(chunk.indexOfFirst {it != whitespace}, 0))
+                .count()
+
+            val firstWord: String = chunk.split(whitespace).firstOrNull { s -> s.isNotEmpty() } ?: ""
+            val shift = whitespaceCountBeforeFirstWord + firstWord.length
+
+            if (shift > 0) {
+                // moving to the end of first word
+                newOffset = offset + shift
+                newLineNumber = lineNumber
+                newCurrentLineOffset = currentLineOffset + shift
+            }
+            else if (lineNumber + 1 < textLines.size) {
+                // move of the next line
+                newOffset = offset + System.lineSeparator().length
+                newLineNumber = lineNumber + 1
+                newCurrentLineOffset = 0
+            }
+            else {
+                // placing cursor on the end of last line
+                newOffset = offset
+                newLineNumber = lineNumber
+                newCurrentLineOffset = textLines[lineNumber].length
+            }
+
+            Cursor(newOffset, newLineNumber, newCurrentLineOffset)
+        }
+    }
+
     override fun changeCursorPositionDirectionRight() {
         cursor = cursor.run {
             val newOffset: Int
