@@ -83,6 +83,18 @@ private fun CanvasState.getMaxHorizontalScrollOffset(): Float {
     return maxHorizontalOffset
 }
 
+/**
+ * Scrolls vertically by the provided lines count.
+ *
+ * @param[k] number of lines. If positive then scrolls up, if negative scrolls down.
+ */
+private fun CanvasState.scrollVerticallyByLines(k: Int) {
+    scrollVerticallyByOffset(-1f * k * symbolSize.height)
+}
+private fun CanvasState.scrollVerticallyByOffset(offset: Float) {
+    verticalScrollOffset.value = coerceVerticalOffset(verticalScrollOffset.value + offset)
+}
+
 private fun CanvasState.coerceVerticalOffset(offset: Float): Float {
     return offset
         .coerceAtLeast(0f)
@@ -448,7 +460,13 @@ private fun Modifier.handleKeyboardInput(canvasState: CanvasState): Modifier {
                     consumed = true
                 }
                 else if (keyEvent.type == KeyEventType.KeyDown && keyEvent.key == Key.DirectionUp) {
-                    textViewModel.directionUp()
+                    if (keyEvent.isCtrlPressed) {
+                        // CTRL + ↑ scrolls the canvas by 1 line up
+                        canvasState.scrollVerticallyByLines(1)
+                    }
+                    else {
+                        textViewModel.directionUp()
+                    }
                     consumed = true
                 }
                 else if (keyEvent.type == KeyEventType.KeyDown && keyEvent.key == Key.DirectionRight) {
@@ -456,7 +474,13 @@ private fun Modifier.handleKeyboardInput(canvasState: CanvasState): Modifier {
                     consumed = true
                 }
                 else if (keyEvent.type == KeyEventType.KeyDown && keyEvent.key == Key.DirectionDown) {
-                    textViewModel.directionDown()
+                    // CTRL + ↓ scrolls the canvas by 1 line down
+                    if (keyEvent.isCtrlPressed) {
+                        canvasState.scrollVerticallyByLines(-1)
+                    }
+                    else {
+                        textViewModel.directionDown()
+                    }
                     consumed = true
                 }
                 else if (keyEvent.type == KeyEventType.KeyDown && keyEvent.key == Key.DirectionLeft) {
