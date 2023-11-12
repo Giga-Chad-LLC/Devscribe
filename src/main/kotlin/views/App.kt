@@ -83,19 +83,19 @@ fun App() {
                         tabsViewModel = tabsViewModel
                     )
 
-                    val modifier = Modifier.fillMaxSize().background(CustomTheme.colors.backgroundDark)
                     val activeFile = tabsViewModel.activeFile
 
                     if (activeFile != null) {
                         Editor(
-                            modifier = modifier,
                             activeFileModel = activeFile,
                             settings = settings,
                         )
                     }
                     else {
                         Box(
-                            modifier = modifier,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(CustomTheme.colors.backgroundDark),
                             contentAlignment = Alignment.Center,
                         ) {
                             Text(

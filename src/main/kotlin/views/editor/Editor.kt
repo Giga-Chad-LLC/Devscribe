@@ -6,16 +6,19 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.v2.ScrollbarAdapter
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.key.*
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
@@ -25,14 +28,15 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.platform.FontLoadResult
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import common.TextConstants
 import common.ceilToInt
+import common.isPrintableSymbolAction
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import models.PinnedFileModel
 import models.text.Cursor
 import org.jetbrains.skia.Font
 import viewmodels.TextViewModel
+import views.common.CustomTheme
 import views.common.FontSettings
 import views.common.Settings
 import kotlin.math.roundToInt
@@ -79,6 +83,18 @@ private fun CanvasState.getMaxHorizontalScrollOffset(): Float {
     return maxHorizontalOffset
 }
 
+/**
+ * Scrolls vertically by the provided lines count.
+ *
+ * @param[k] number of lines. If positive then scrolls up, if negative scrolls down.
+ */
+private fun CanvasState.scrollVerticallyByLines(k: Int) {
+    scrollVerticallyByOffset(-1f * k * symbolSize.height)
+}
+private fun CanvasState.scrollVerticallyByOffset(offset: Float) {
+    verticalScrollOffset.value = coerceVerticalOffset(verticalScrollOffset.value + offset)
+}
+
 private fun CanvasState.coerceVerticalOffset(offset: Float): Float {
     return offset
         .coerceAtLeast(0f)
@@ -98,8 +114,8 @@ private fun CanvasState.canvasOffsetToCursorPosition(offset: Offset) : Pair<Int,
     val lineIndex = ((offset.y + verticalScrollOffset.value) / symbolSize.height)
         .toInt().coerceAtMost(textViewModel.textModel.linesCount() - 1)
 
-    println("symbolWidth=${symbolSize.width}")
-    println("lineOffsetFloat=${(offset.x + horizontalScrollOffset.value - TEXT_CANVAS_LEFT_MARGIN) / symbolSize.width}")
+    /*println("symbolWidth=${symbolSize.width}")
+    println("lineOffsetFloat=${(offset.x + horizontalScrollOffset.value - TEXT_CANVAS_LEFT_MARGIN) / symbolSize.width}")*/
 
     val lineOffset = ((offset.x + horizontalScrollOffset.value - TEXT_CANVAS_LEFT_MARGIN) / symbolSize.width)
         .roundToInt().coerceAtLeast(0).coerceAtMost(textViewModel.textModel.lineLength(lineIndex))
@@ -125,7 +141,7 @@ private fun CanvasState.viewportLinesRange(): Pair<Int, Int> {
 
 private fun CanvasState.calculateViewportVisibleText(): String {
     val (startLineIndex, endLineIndex) = viewportLinesRange()
-    println("startLineIndex=$startLineIndex, endLineIndex=$endLineIndex")
+    //println("startLineIndex=$startLineIndex, endLineIndex=$endLineIndex")
 
     return textViewModel.textModel.textInLinesRange(startLineIndex, endLineIndex)
 }
@@ -407,11 +423,15 @@ private fun DrawScope.drawLinesPanel(
 /**
  * Handles mouse click on the canvas by changing cursor position
  */
-private fun Modifier.changeCursorOnMouseClick(canvasState: CanvasState): Modifier {
+private fun Modifier.pointerInput(focusRequester: FocusRequester, canvasState: CanvasState): Modifier {
     return this.then(
         Modifier
             .pointerInput(Unit) {
                 detectTapGestures(onPress = { offset ->
+                    // focusing on the canvas
+                    focusRequester.requestFocus()
+
+                    // moving cursor to the mouse click position
                     val (lineIndex, lineOffset) = canvasState.canvasOffsetToCursorPosition(offset)
                     canvasState.textViewModel.textModel.changeCursorPosition(lineIndex, lineOffset)
                 })
@@ -419,14 +439,86 @@ private fun Modifier.changeCursorOnMouseClick(canvasState: CanvasState): Modifie
     )
 }
 
+/**
+ * Handles keyboard inputs by executing commands of TextViewModel
+ */
+@OptIn(ExperimentalComposeUiApi::class)
+private fun Modifier.handleKeyboardInput(canvasState: CanvasState): Modifier {
+    val textViewModel = canvasState.textViewModel
 
-@OptIn(ExperimentalTextApi::class, ExperimentalFoundationApi::class)
+    return this.then(
+        Modifier
+            .onKeyEvent { keyEvent ->
+                var consumed = false
+
+                if (keyEvent.type == KeyEventType.KeyDown && keyEvent.key == Key.Backspace) {
+                    textViewModel.backspace()
+                    consumed = true
+                }
+                else if (keyEvent.type == KeyEventType.KeyDown && keyEvent.key == Key.Enter) {
+                    textViewModel.newline()
+                    consumed = true
+                }
+                else if (keyEvent.type == KeyEventType.KeyDown && keyEvent.key == Key.DirectionUp) {
+                    if (keyEvent.isCtrlPressed) {
+                        // CTRL + ↑ scrolls the canvas by 1 line up
+                        canvasState.scrollVerticallyByLines(1)
+                    }
+                    else {
+                        textViewModel.directionUp()
+                    }
+                    consumed = true
+                }
+                else if (keyEvent.type == KeyEventType.KeyDown && keyEvent.key == Key.DirectionRight) {
+                    if (keyEvent.isCtrlPressed) {
+                        // CTRL + → forwards cursor to the end of next word
+                        textViewModel.forwardToNextWord()
+                    }
+                    else {
+                        textViewModel.directionRight()
+                    }
+                    consumed = true
+                }
+                else if (keyEvent.type == KeyEventType.KeyDown && keyEvent.key == Key.DirectionDown) {
+                    // CTRL + ↓ scrolls the canvas by 1 line down
+                    if (keyEvent.isCtrlPressed) {
+                        canvasState.scrollVerticallyByLines(-1)
+                    }
+                    else {
+                        textViewModel.directionDown()
+                    }
+                    consumed = true
+                }
+                else if (keyEvent.type == KeyEventType.KeyDown && keyEvent.key == Key.DirectionLeft) {
+                    if (keyEvent.isCtrlPressed) {
+                        // CTRL + ← backwards cursor to the start of previous word
+                        textViewModel.backwardToPreviousWord()
+                    }
+                    textViewModel.directionLeft()
+                    consumed = true
+                }
+                else if (keyEvent.type == KeyEventType.KeyDown && keyEvent.key == Key.Spacebar) {
+                    textViewModel.whitespace()
+                    consumed = true
+                }
+                else if (keyEvent.type == KeyEventType.KeyDown && keyEvent.key == Key.Delete) {
+                    textViewModel.delete()
+                    consumed = true
+                }
+                else if (keyEvent.type == KeyEventType.KeyDown && isPrintableSymbolAction(keyEvent)) {
+                    textViewModel.symbol(keyEvent.utf16CodePoint.toChar())
+                    consumed = true
+                }
+
+                consumed
+            }
+    )
+}
+
+
+@OptIn(ExperimentalTextApi::class)
 @Composable
-fun Editor(
-    modifier: Modifier,
-    activeFileModel: PinnedFileModel,
-    settings: Settings
-) {
+fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
     val coroutineScope = rememberCoroutineScope()
     val textMeasurer = rememberTextMeasurer()
     val textViewModel by remember { mutableStateOf(TextViewModel(coroutineScope, activeFileModel)) }
@@ -459,8 +551,6 @@ fun Editor(
         textViewModel = textViewModel
     )
 
-    // println("canvasState: $canvasState")
-
     val verticalScrollState = canvasState.initializeVerticalScrollbar()
     val horizontalScrollState = canvasState.initializeHorizontalScrollbar()
 
@@ -469,10 +559,8 @@ fun Editor(
         textMeasurer,
         canvasState,
         settings,
-        density
+        density,
     )
-
-    // println("width_dp=${linesPanelSize.width.dp}, width=${linesPanelSize.width}")
 
     Row(Modifier.fillMaxSize()) {
         /**
@@ -480,12 +568,12 @@ fun Editor(
          */
         Canvas(
             Modifier
-                .background(settings.editorSettings.linesPanel.backgroundColor)
-                .clipToBounds()
                 // dividing by current density to make the width in dp match the actual width
                 .width((linesPanelSize.width / LocalDensity.current.density).dp)
-                .fillMaxHeight()
                 .scrollable(verticalScrollState, Orientation.Vertical)
+                .fillMaxHeight()
+                .clipToBounds()
+                .background(settings.editorSettings.linesPanel.backgroundColor)
         ) {
             drawLinesPanel(
                 fontFamilyResolver = fontFamilyResolver,
@@ -503,17 +591,18 @@ fun Editor(
          */
         Box {
             Canvas(
-                modifier.then(
-                    Modifier
-                        .clipToBounds()
-                        .focusRequester(requester)
-                        .focusable()
-                        .onSizeChanged { canvasState.canvasSize.value = it }
-                        .onClick { requester.requestFocus() }
-                        .changeCursorOnMouseClick(canvasState)
-                        .scrollable(verticalScrollState, Orientation.Vertical)
-                        .scrollable(horizontalScrollState, Orientation.Horizontal)
-                )
+                modifier = Modifier
+                    // focusRequester() should be added BEFORE focusable()
+                    .focusRequester(requester)
+                    .focusable()
+                    .handleKeyboardInput(canvasState)
+                    .onSizeChanged { canvasState.canvasSize.value = it }
+                    .pointerInput(requester, canvasState)
+                    .scrollable(verticalScrollState, Orientation.Vertical)
+                    .scrollable(horizontalScrollState, Orientation.Horizontal)
+                    .background(CustomTheme.colors.backgroundDark)
+                    .clipToBounds()
+                    .fillMaxSize()
             ) {
                 textViewModel.let {
                     val verticalOffset = canvasState.verticalScrollOffset.value
@@ -568,8 +657,8 @@ fun Editor(
                         val cursorOffset =
                             textViewModel.textModel.totalOffsetOfLine(it.cursor.lineNumber) +
                                     it.cursor.currentLineOffset - textViewModel.textModel.totalOffsetOfLine(startLineIndex)
-                        println("cursorOffset=$cursorOffset, cursorLine=${it.cursor.lineNumber}, " +
-                                "cursorLineOffset=${it.cursor.currentLineOffset}")
+                        /*println("cursorOffset=$cursorOffset, cursorLine=${it.cursor.lineNumber}, " +
+                                "cursorLineOffset=${it.cursor.currentLineOffset}")*/
 
                         val cursor: Rect = measuredText.getCursorRect(cursorOffset/*it.cursor.offset*/)
                         drawRect(
@@ -583,6 +672,11 @@ fun Editor(
                         )
                     }
                 }
+            }
+
+            // focus on canvas on every update of opened file
+            LaunchedEffect(activeFileModel) {
+                requester.requestFocus()
             }
 
             // scrollbars
