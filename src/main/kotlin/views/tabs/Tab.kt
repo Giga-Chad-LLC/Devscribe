@@ -1,9 +1,8 @@
 package views.tabs
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.hoverable
+import androidx.compose.foundation.*
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -19,6 +18,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
@@ -28,6 +29,7 @@ import androidx.compose.ui.unit.sp
 import views.common.CustomTheme
 import views.common.Settings
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun Tab(
     filename: String,
@@ -36,44 +38,70 @@ fun Tab(
     onTabClick: () -> Unit,
     onCloseButtonClick: () -> Unit
     ) {
-    val tabFocusManager = LocalFocusManager.current
-    val interactionSource = remember { MutableInteractionSource() }
-    val hovered by interactionSource.collectIsHoveredAsState()
+    //val tabFocusManager = LocalFocusManager.current
+    val tabFocusRequester = remember { FocusRequester() }
+    val tabInteractionSource = remember { MutableInteractionSource() }
+    val closeIconFocusRequester = remember { FocusRequester() }
+    val closeIconInteractionSource = remember { MutableInteractionSource() }
 
-    fun selectBackgroundColor(): Color {
-        if (active && !hovered) {
-            return CustomTheme.colors.backgroundMedium
-        }
-        if (hovered) {
-            return CustomTheme.colors.backgroundDark
-        }
+    val tabHovered by tabInteractionSource.collectIsHoveredAsState()
+    val tabFocused by tabInteractionSource.collectIsFocusedAsState()
+
+    val closeIconHovered by closeIconInteractionSource.collectIsHoveredAsState()
+    val closeIconFocused by closeIconInteractionSource.collectIsFocusedAsState()
+
+    fun selectTabBackgroundColor(): Color {
+        if (tabHovered) return CustomTheme.colors.backgroundMedium
+        if (active) return CustomTheme.colors.backgroundDark
+        if (tabFocused) return CustomTheme.colors.backgroundMedium
         return CustomTheme.colors.backgroundLight
+    }
+
+    fun selectCloseIconColor(): Color {
+        if (closeIconHovered) return Color.White
+        if (closeIconFocused) return CustomTheme.colors.focusedAccentColor
+        return Color.Gray
     }
 
     Row(
         modifier = Modifier
-            .background(selectBackgroundColor())
-            .hoverable(interactionSource = interactionSource)
+            .background(selectTabBackgroundColor())
+            // focusRequester() should be added BEFORE focusable()
+            .focusRequester(tabFocusRequester)
+            .focusable(interactionSource = tabInteractionSource)
+            .hoverable(interactionSource = tabInteractionSource)
             .clickable(
-                role = Role.Tab,
-                onClick = {
-                    onTabClick()
-                    tabFocusManager.clearFocus()
-                }
+                interactionSource = tabInteractionSource,
+                indication = null,
+                onClick = { onTabClick() }
             )
             .drawBehind {
                 /**
-                 * Drawing border on the left side of a container
+                 * Drawing border on the left side
                  */
-                val strokeWidth = 0.5.dp.value * density
-                val x = size.width - strokeWidth / 2
-
+                var strokeWidth = 0.5.dp.value * density
+                val x = size.width - strokeWidth / 2 // TODO: need to divide to 2?
                 drawLine(
                     color = CustomTheme.colors.backgroundMedium,
                     start = Offset(x, 0f),
                     end = Offset(x, size.height),
-                    strokeWidth = strokeWidth
+                    strokeWidth = strokeWidth,
                 )
+
+                /**
+                 * Drawing border on the bottom if active or focused
+                 */
+                if (active || tabFocused) {
+                    val color = if (tabFocused) CustomTheme.colors.focusedAccentColor else Color.White
+                    strokeWidth = 1.dp.value * density
+                    val y = size.height - strokeWidth
+                    drawLine(
+                        color = color,
+                        start = Offset(0f, y),
+                        end = Offset(size.width, y),
+                        strokeWidth = strokeWidth,
+                    )
+                }
             },
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
@@ -85,16 +113,22 @@ fun Tab(
             fontFamily = settings.fontSettings.fontFamily,
             fontSize = 14.sp,
         )
+
         Icon(
             modifier = Modifier
                 .padding(0.dp, 0.dp, 5.dp, 0.dp)
                 .width(15.dp)
-                .clickable {
-                    onCloseButtonClick()
-                    tabFocusManager.clearFocus()
-               },
+                // focusRequester() should be added BEFORE focusable()
+                .focusRequester(closeIconFocusRequester)
+                .focusable(interactionSource = closeIconInteractionSource)
+                .hoverable(interactionSource = closeIconInteractionSource)
+                .clickable(
+                    interactionSource = closeIconInteractionSource,
+                    indication = null,
+                    onClick = { onCloseButtonClick() }
+                ),
             imageVector = Icons.Rounded.Close,
-            tint = Color.White,
+            tint = selectCloseIconColor(),
             contentDescription = "Close tab '$filename'"
         )
     }
