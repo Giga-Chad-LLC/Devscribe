@@ -4,6 +4,7 @@ import androidx.compose.foundation.*
 import androidx.compose.foundation.gestures.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.v2.ScrollbarAdapter
+import androidx.compose.material.Button
 import androidx.compose.material.Text
 import androidx.compose.runtime.*
 import androidx.compose.runtime.snapshots.SnapshotStateList
@@ -17,7 +18,9 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.DrawStyle
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.input.pointer.pointerInput
@@ -70,6 +73,7 @@ internal data class CanvasState(
     val isSearchBarVisible: MutableState<Boolean>,
     val searchResults: SnapshotStateList<SearchResult>,
     var currentSearchResultIndex: MutableState<Int>,
+    var searchResultLength: MutableState<Int>,
 )
 
 private fun CanvasState.getMaxVerticalScrollOffset(): Float {
@@ -109,6 +113,7 @@ private fun CanvasState.scrollVerticallyByLines(k: Int) {
 }
 private fun CanvasState.scrollVerticallyByOffset(offset: Float) {
     verticalScrollOffset.value = coerceVerticalOffset(verticalScrollOffset.value + offset)
+    println("verticalScrollOffset=${verticalScrollOffset.value}")
 }
 
 private fun CanvasState.coerceVerticalOffset(offset: Float): Float {
@@ -157,8 +162,6 @@ private fun CanvasState.viewportLinesRange(): Pair<Int, Int> {
 
 private fun CanvasState.calculateViewportVisibleText(): String {
     val (startLineIndex, endLineIndex) = viewportLinesRange()
-    //println("startLineIndex=$startLineIndex, endLineIndex=$endLineIndex")
-
     return textViewModel.textModel.textInLinesRange(startLineIndex, endLineIndex)
 }
 
@@ -206,16 +209,21 @@ private fun CanvasState.scrollToPreviousSearchResult() {
 }
 
 private fun CanvasState.scrollByKSearchResult(k: Int) {
- // currentSearchResultIndex
     val (startLineIndex, endLineIndex) = viewportLinesRange()
     val centerLineIndex = (startLineIndex + endLineIndex) / 2
 
     assert(searchResults.isNotEmpty()) { "List must contain search results" }
-    val nextSearchResultIndex = (currentSearchResultIndex.value + k) % searchResults.size
+    val nextSearchResultIndex = (currentSearchResultIndex.value + k + searchResults.size) % searchResults.size
     val nextSearchResult = searchResults[nextSearchResultIndex]
 
+    val linesDifference = centerLineIndex - nextSearchResult.lineIndex
+
+    println("nextSearchResultIndex=${nextSearchResultIndex} " +
+            "nextSearchResult=${nextSearchResult} " +
+            "lineDiff=${linesDifference}")
+
     currentSearchResultIndex.value = nextSearchResultIndex
-    scrollVerticallyByLines(centerLineIndex - nextSearchResult.lineIndex)
+    scrollVerticallyByLines(linesDifference)
 }
 
 @Composable
@@ -630,6 +638,7 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
         isSearchBarVisible = remember { mutableStateOf(false) },
         searchResults = remember { mutableStateListOf() },
         currentSearchResultIndex = remember { mutableStateOf(0) },
+        searchResultLength = remember { mutableStateOf(0) }
     )
 
     val verticalScrollState = canvasState.initializeVerticalScrollbar()
@@ -665,6 +674,7 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
                     }
                 }
 
+                canvasState.searchResultLength.value = searchText.length
                 canvasState.scrollToClosestSearchResult()
             }
         }
@@ -684,7 +694,16 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
                     }
                 )
 
-                Text(text = "${0}/${canvasState.searchResults.size}")
+                Text("${canvasState.currentSearchResultIndex.value + 1}/${canvasState.searchResults.size}")
+
+                Button(onClick = {
+                    canvasState.scrollToPreviousSearchResult()
+                }) {
+                    Text("Prev")
+                }
+                Button(onClick = { canvasState.scrollToNextSearchResult() }) {
+                    Text("Next")
+                }
             }
         }
 
@@ -735,8 +754,11 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
                         val verticalOffset = canvasState.verticalScrollOffset.value
                         val horizontalOffset = canvasState.horizontalScrollOffset.value
 
+                        // TODO: move into method
                         // scrolling on cursor getting out of viewport
                         if (previousCursorState.offset != it.cursor.offset) {
+                            println("previousCursorState=${previousCursorState} " +
+                                    "currentCursor=${it.cursor}")
                             scrollHorizontallyOnCursorOutOfCanvasViewport(
                                 coroutineScope = coroutineScope,
                                 canvasState = canvasState,
@@ -754,10 +776,42 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
                             )
 
                             previousCursorState = Cursor(it.cursor)
+                            println("updatedPrev=${previousCursorState}")
                         }
 
                         val translationX = -horizontalOffset + TEXT_CANVAS_LEFT_MARGIN
                         val translationY = -verticalOffset
+
+                        // TODO: temporal, move to function
+                        // TODO: highlight all occurrences but mark the selected one with border (use LaunchEffect)
+
+                        if (canvasState.isSearchBarVisible.value) {
+                            for (index in canvasState.searchResults.indices) {
+                                val searchResult = canvasState.searchResults[index]
+
+                                val offsetX = searchResult.lineOffset * canvasState.symbolSize.width + translationX
+                                val offsetY = searchResult.lineIndex * canvasState.symbolSize.height + translationY
+
+                                val highlighterWidth = canvasState.searchResultLength.value * canvasState.symbolSize.width
+                                val highlighterHeight = canvasState.symbolSize.height
+
+                                drawRect(
+                                    color = Color(0xFF32593D),
+                                    topLeft = Offset(offsetX, offsetY),
+                                    size = Size(highlighterWidth, highlighterHeight)
+                                )
+
+                                // highlighting with stroke currently selected searched result
+                                if (canvasState.currentSearchResultIndex.value == index) {
+                                    drawRect(
+                                        color = Color.White,
+                                        topLeft = Offset(offsetX, offsetY),
+                                        style = Stroke(0.5.dp.toPx()),
+                                        size = Size(highlighterWidth, highlighterHeight)
+                                    )
+                                }
+                            }
+                        }
 
                         // drawing highlighter of cursored line
                         drawRect(
