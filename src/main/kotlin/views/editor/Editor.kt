@@ -599,7 +599,7 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
     val coroutineScope = rememberCoroutineScope()
     val textMeasurer = rememberTextMeasurer()
     val textViewModel by remember { mutableStateOf(TextViewModel(coroutineScope, activeFileModel)) }
-    var previousCursorState = remember { Cursor(textViewModel.cursor) }
+    var previousCursorState by remember { mutableStateOf(Cursor(textViewModel.cursor)) }
     val requester = remember { FocusRequester() }
     val editorTextStyle = remember {
         TextStyle(
