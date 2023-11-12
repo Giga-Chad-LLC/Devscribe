@@ -9,7 +9,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.focus.*
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
@@ -20,7 +22,6 @@ import androidx.compose.ui.input.key.*
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalFontFamilyResolver
 import androidx.compose.ui.text.*
 import androidx.compose.ui.text.font.FontFamily
@@ -410,17 +411,15 @@ private fun DrawScope.drawLinesPanel(
 /**
  * Handles mouse click on the canvas by changing cursor position
  */
-private fun Modifier.handlePointerInput(focusRequester: FocusRequester, canvasState: CanvasState): Modifier {
+private fun Modifier.pointerInput(focusRequester: FocusRequester, canvasState: CanvasState): Modifier {
     return this.then(
         Modifier
-            .onFocusChanged { focusState -> println("focusState=${focusState}") }
             .pointerInput(Unit) {
                 detectTapGestures(onPress = { offset ->
-                    // focus request on canvas
-                    focusRequester.freeFocus()
+                    // focusing on the canvas
                     focusRequester.requestFocus()
 
-                    // change cursor position
+                    // moving cursor to the mouse click position
                     val (lineIndex, lineOffset) = canvasState.canvasOffsetToCursorPosition(offset)
                     canvasState.textViewModel.textModel.changeCursorPosition(lineIndex, lineOffset)
                 })
@@ -559,11 +558,12 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
         Box {
             Canvas(
                 modifier = Modifier
-                    .focusable()
+                    // focusRequester() should be added BEFORE focusable()
                     .focusRequester(requester)
+                    .focusable()
                     .handleKeyboardInput(canvasState)
                     .onSizeChanged { canvasState.canvasSize.value = it }
-                    .handlePointerInput(requester, canvasState)
+                    .pointerInput(requester, canvasState)
                     .scrollable(verticalScrollState, Orientation.Vertical)
                     .scrollable(horizontalScrollState, Orientation.Horizontal)
                     .background(CustomTheme.colors.backgroundDark)
@@ -640,8 +640,8 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
                 }
             }
 
-            LaunchedEffect(Unit) {
-                println("LaunchedEffect requesting Focus")
+            // focus on canvas on every update of opened file
+            LaunchedEffect(activeFileModel) {
                 requester.requestFocus()
             }
 
