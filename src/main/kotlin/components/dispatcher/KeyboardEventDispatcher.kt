@@ -14,7 +14,7 @@ class KeyboardEventDispatcher private constructor() {
         return (event.type == KeyEventType.KeyDown && event.key == Key.S && event.isCtrlPressed)
     }
 
-    private fun isBackspaceAction(event: KeyEvent): Boolean {
+    /*private fun isBackspaceAction(event: KeyEvent): Boolean {
         return (event.type == KeyEventType.KeyDown && event.key == Key.Backspace)
     }
 
@@ -49,7 +49,7 @@ class KeyboardEventDispatcher private constructor() {
     private fun isPrintableSymbolAction(event: KeyEvent): Boolean {
         val ch = event.utf16CodePoint.toChar()
         return event.type == KeyEventType.KeyDown && !ch.isISOControl() && !ch.isIdentifierIgnorable() && ch.isDefined()
-    }
+    }*/
 
     fun dispatch(event: KeyEvent): Boolean {
         var action: KeyboardAction? = null
@@ -57,7 +57,7 @@ class KeyboardEventDispatcher private constructor() {
         if (isSaveFileAction(event)) {
             action = KeyboardAction.SAVE_FILE
         }
-        if (isBackspaceAction(event)) {
+        /*if (isBackspaceAction(event)) {
             action = KeyboardAction.BACKSPACE
         }
         else if (isNewlineAction(event)) {
@@ -83,7 +83,7 @@ class KeyboardEventDispatcher private constructor() {
         }
         else if (isPrintableSymbolAction(event)) {
             action = KeyboardAction.PRINTABLE_SYMBOL
-        }
+        }*/
 
         val actionHandled = (action != null)
 

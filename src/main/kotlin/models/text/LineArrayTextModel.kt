@@ -295,8 +295,6 @@ class LineArrayTextModel : TextModel {
             throw IllegalArgumentException("Line offset must be in range [0; ${cursoredLine.length}], got $lineOffset")
         }
 
-        println("Cursored line: '${textLines[lineIndex]}'")
-
         var absoluteOffset = lineOffset
         for (i in 0 until lineIndex) {
             absoluteOffset += textLines[i].length + System.lineSeparator().length

@@ -71,46 +71,56 @@ class TextViewModel(coroutineScope: CoroutineScope, private var activeFileModel:
         }
     }
 
+    fun backspace() {
+        activeFileModel.textModel.backspace()
+        debounceHandler.run(activeFileModel)
+    }
+
+    fun newline() {
+        activeFileModel.textModel.newline()
+        debounceHandler.run(activeFileModel)
+    }
+
+    fun directionUp() {
+        activeFileModel.textModel.changeCursorPositionDirectionUp()
+    }
+
+    fun directionRight() {
+        activeFileModel.textModel.changeCursorPositionDirectionRight()
+    }
+
+    fun directionDown() {
+        activeFileModel.textModel.changeCursorPositionDirectionDown()
+    }
+
+    fun directionLeft() {
+        activeFileModel.textModel.changeCursorPositionDirectionLeft()
+    }
+
+    fun whitespace() {
+        activeFileModel.textModel.insert(TextConstants.nonBreakingSpaceChar)
+        debounceHandler.run(activeFileModel)
+    }
+
+    fun delete() {
+        activeFileModel.textModel.delete()
+        debounceHandler.run(activeFileModel)
+    }
+
+    fun symbol(ch: Char) {
+        activeFileModel.textModel.insert(ch)
+        debounceHandler.run(activeFileModel)
+    }
+
     init {
         // TODO: remove dispatcher from TextModelView (remove it completely, I guess)
         val dispatcher = KeyboardEventDispatcher.getInstance()
 
         dispatcher.subscribe(KeyboardAction.SAVE_FILE) {
+            println("Saving file on CTRL+S...")
             val currentFile = activeFileModel
             syncModelWithVFS(currentFile)
             saveFileOnDisk(currentFile)
-        }
-        dispatcher.subscribe(KeyboardAction.BACKSPACE) {
-            activeFileModel.textModel.backspace()
-            debounceHandler.run(activeFileModel)
-        }
-        dispatcher.subscribe(KeyboardAction.NEWLINE) {
-            activeFileModel.textModel.newline()
-            debounceHandler.run(activeFileModel)
-        }
-        dispatcher.subscribe(KeyboardAction.DIRECTION_UP) {
-            activeFileModel.textModel.changeCursorPositionDirectionUp()
-        }
-        dispatcher.subscribe(KeyboardAction.DIRECTION_RIGHT) {
-            activeFileModel.textModel.changeCursorPositionDirectionRight()
-        }
-        dispatcher.subscribe(KeyboardAction.DIRECTION_DOWN) {
-            activeFileModel.textModel.changeCursorPositionDirectionDown()
-        }
-        dispatcher.subscribe(KeyboardAction.DIRECTION_LEFT) {
-            activeFileModel.textModel.changeCursorPositionDirectionLeft()
-        }
-        dispatcher.subscribe(KeyboardAction.SPACE) {
-            activeFileModel.textModel.insert(TextConstants.nonBreakingSpaceChar)
-            debounceHandler.run(activeFileModel)
-        }
-        dispatcher.subscribe(KeyboardAction.DELETE) {
-            activeFileModel.textModel.delete()
-            debounceHandler.run(activeFileModel)
-        }
-        dispatcher.subscribe(KeyboardAction.PRINTABLE_SYMBOL) {
-            activeFileModel.textModel.insert(it.utf16CodePoint.toChar())
-            debounceHandler.run(activeFileModel)
         }
     }
 }
