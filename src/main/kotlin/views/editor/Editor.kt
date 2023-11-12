@@ -490,6 +490,10 @@ private fun Modifier.handleKeyboardInput(canvasState: CanvasState): Modifier {
                     consumed = true
                 }
                 else if (keyEvent.type == KeyEventType.KeyDown && keyEvent.key == Key.DirectionLeft) {
+                    if (keyEvent.isCtrlPressed) {
+                        // CTRL + ← backwards cursor to the start of previous word
+                        textViewModel.backwardToPreviousWord()
+                    }
                     textViewModel.directionLeft()
                     consumed = true
                 }

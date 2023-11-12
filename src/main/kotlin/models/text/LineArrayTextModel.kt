@@ -188,6 +188,30 @@ class LineArrayTextModel : TextModel {
         }
     }
 
+    private fun calculateShiftToNextWord(chunk: String): Int {
+        val delimiters = listOf(
+            TextConstants.nonBreakingSpaceChar,
+            '.', ',',
+            '/', '\\',
+            '(', ')',
+        )
+
+        val whitespaceCountBeforeFirstWord = chunk
+            // dropping letters after a starting sequence of consecutive delimiters
+            .dropLast(chunk.length - max(chunk.indexOfFirst { !delimiters.contains(it) }, 0))
+            .count()
+
+        val firstWord: String = chunk
+            .split(*delimiters.map { ch -> ch.toString() }.toTypedArray())
+            .firstOrNull { s -> s.isNotEmpty() } ?: ""
+
+        println("whitespaceCountBeforeFirstWord=${whitespaceCountBeforeFirstWord} " +
+                " " +
+                "firstWord='${firstWord}'")
+
+        return whitespaceCountBeforeFirstWord + firstWord.length
+    }
+
     override fun forwardToNextWord() {
         val chunk = splitCurrentCursorLine().afterCursor
 
@@ -196,15 +220,7 @@ class LineArrayTextModel : TextModel {
             val newLineNumber: Int
             val newCurrentLineOffset: Int
 
-            val whitespace = TextConstants.nonBreakingSpaceChar
-
-            val whitespaceCountBeforeFirstWord = chunk
-                // dropping letters after a starting sequence of consecutive whitespaces
-                .dropLast(chunk.length - max(chunk.indexOfFirst {it != whitespace}, 0))
-                .count()
-
-            val firstWord: String = chunk.split(whitespace).firstOrNull { s -> s.isNotEmpty() } ?: ""
-            val shift = whitespaceCountBeforeFirstWord + firstWord.length
+            val shift = calculateShiftToNextWord(chunk)
 
             if (shift > 0) {
                 // moving to the end of first word
@@ -223,6 +239,41 @@ class LineArrayTextModel : TextModel {
                 newOffset = offset
                 newLineNumber = lineNumber
                 newCurrentLineOffset = textLines[lineNumber].length
+            }
+
+            Cursor(newOffset, newLineNumber, newCurrentLineOffset)
+        }
+    }
+
+    override fun backwardToPreviousWord() {
+        val chunk = splitCurrentCursorLine().beforeCursor
+
+        cursor = cursor.run {
+            val newOffset: Int
+            val newLineNumber: Int
+            val newCurrentLineOffset: Int
+
+            val shift = calculateShiftToNextWord(chunk.reversed())
+            println("chunk='${chunk}', shift=${shift}")
+
+
+            if (shift > 0) {
+                // moving to the end of first word
+                newOffset = offset - shift + 1
+                newLineNumber = lineNumber
+                newCurrentLineOffset = currentLineOffset - shift + 1
+            }
+            else if (lineNumber > 0) {
+                // move of the next line
+                newOffset = offset - System.lineSeparator().length
+                newLineNumber = lineNumber - 1
+                newCurrentLineOffset = textLines[newLineNumber].length
+            }
+            else {
+                // placing cursor on the start of first line
+                newOffset = offset
+                newLineNumber = lineNumber
+                newCurrentLineOffset = 0
             }
 
             Cursor(newOffset, newLineNumber, newCurrentLineOffset)

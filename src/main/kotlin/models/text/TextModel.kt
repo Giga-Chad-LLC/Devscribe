@@ -26,6 +26,8 @@ interface TextModel {
 
     fun forwardToNextWord()
 
+    fun backwardToPreviousWord()
+
     /**
      * Should be overwritten by an implementation because default version works for O(L) where L is the sum of lengths of all strings.
      */

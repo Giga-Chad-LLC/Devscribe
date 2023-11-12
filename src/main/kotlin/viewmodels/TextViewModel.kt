@@ -116,6 +116,10 @@ class TextViewModel(coroutineScope: CoroutineScope, private var activeFileModel:
         activeFileModel.textModel.forwardToNextWord()
     }
 
+    fun backwardToPreviousWord() {
+        activeFileModel.textModel.backwardToPreviousWord()
+    }
+
     init {
         // TODO: remove dispatcher from TextModelView (remove it completely, I guess)
         val dispatcher = KeyboardEventDispatcher.getInstance()
