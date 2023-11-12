@@ -1,4 +1,4 @@
-package views.common
+package views.common.design
 
 import androidx.compose.material.darkColors
 import androidx.compose.ui.graphics.Color

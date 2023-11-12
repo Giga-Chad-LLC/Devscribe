@@ -39,6 +39,8 @@ interface TextModel {
 
     fun totalOffsetOfLine(lineIndex: Int): Int
 
+    fun textLines(): List<String>
+
     /**
      * Returns lines in range fromIndex (inclusive) to toIndex (exclusive).
      * The result array contains lines without trailing newline characters

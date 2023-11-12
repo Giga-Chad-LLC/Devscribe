@@ -22,12 +22,10 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import views.common.CustomTheme
-import views.common.Settings
+import views.common.design.CustomTheme
+import views.common.design.Settings
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable

@@ -417,6 +417,10 @@ class LineArrayTextModel : TextModel {
         return offset
     }
 
+    override fun textLines(): List<String> {
+        return textLines
+    }
+
     override fun maxLineLength(): Int {
         return textLines.maxOfOrNull { s -> s.length } ?: 0
     }
