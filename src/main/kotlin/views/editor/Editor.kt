@@ -2,6 +2,8 @@ package views.editor
 
 import androidx.compose.foundation.*
 import androidx.compose.foundation.gestures.*
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.v2.ScrollbarAdapter
 import androidx.compose.runtime.*
@@ -18,9 +20,13 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFontFamilyResolver
 import androidx.compose.ui.text.*
@@ -248,10 +254,9 @@ private fun CanvasState.scrollByKSearchResults(k: Int) {
 
     val linesDifference = centerLineIndex - nextSearchResult.lineIndex
 
-
-    println("nextSearchResultIndex=${nextSearchResultIndex} " +
+    /*println("nextSearchResultIndex=${nextSearchResultIndex} " +
             "nextSearchResult=${nextSearchResult} " +
-            "lineDiff=${linesDifference}")
+            "lineDiff=${linesDifference}")*/
 
     currentSearchResultIndex.value = nextSearchResultIndex
     scrollVerticallyByLines(linesDifference)
@@ -499,6 +504,7 @@ private fun DrawScope.drawLinesPanel(
     canvasState: CanvasState,
     cursor: Cursor,
     settings: Settings,
+    editorFocused: Boolean,
     density: Float
 ) {
     val linesPanelSettings = settings.editorSettings.linesPanel
@@ -540,7 +546,7 @@ private fun DrawScope.drawLinesPanel(
      * Drawing a split line on the right border of the lines panel
      */
     drawRect(
-        color = linesPanelSettings.splitLineColor,
+        color = if (editorFocused) linesPanelSettings.editorFocusedSplitLineColor else linesPanelSettings.splitLineColor,
         topLeft = Offset(linesPanelSize.width - 1f, 0f),
         size = Size(1f, linesPanelSize.height)
     )
@@ -736,6 +742,9 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
         density,
     )
 
+    val editorInteractionSource = remember { MutableInteractionSource() }
+    val editorFocused by editorInteractionSource.collectIsFocusedAsState()
+
     val searchTextInFileDebounced = remember {
         DebounceHandler(500, coroutineScope) { searchText: String ->
             canvasState.searchTextInFile(searchText)
@@ -781,6 +790,7 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
                     canvasState = canvasState,
                     cursor = textViewModel.cursor,
                     settings = settings,
+                    editorFocused = editorFocused,
                     density = density,
                 )
             }
@@ -793,7 +803,7 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
                     modifier = Modifier
                         // focusRequester() should be added BEFORE focusable()
                         .focusRequester(requester)
-                        .focusable()
+                        .focusable(interactionSource = editorInteractionSource)
                         .handleKeyboardInput(canvasState)
                         .onSizeChanged { canvasState.canvasSize.value = it }
                         .pointerInput(requester, canvasState)

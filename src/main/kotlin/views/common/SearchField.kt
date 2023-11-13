@@ -1,22 +1,25 @@
 package views.common
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
+import androidx.compose.foundation.*
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.rememberScrollableState
 import androidx.compose.foundation.gestures.scrollable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.input.key.*
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.IntSize
@@ -44,23 +47,35 @@ private fun SearchFieldState.initializeHorizontalScrollableState() =
 }
 
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun SearchField(
     settings: Settings,
     onSearchTextChanged: (String) -> Unit,
     searchText: MutableState<String> = remember { mutableStateOf("") },
-    modifier: Modifier = Modifier
+    onShiftEnterPressed: () -> Unit = {},
+    onEnterPressed: () -> Unit = {},
 ) {
+    val focusRequester = remember { FocusRequester() }
+    val interactionSource = remember { MutableInteractionSource() }
+
+    val focused by interactionSource.collectIsFocusedAsState()
+
     val fontSettings = settings.searchFieldFontSettings
     val borderRadius = 6.dp
 
     val searchFieldState = SearchFieldState(
         horizontalScrollOffset = remember { mutableStateOf(0f) },
         fieldSize = remember { mutableStateOf(IntSize.Zero) },
-        searchText = searchText // remember { mutableStateOf("") },
+        searchText = searchText,
     )
 
     val verticalScrollState = searchFieldState.initializeHorizontalScrollableState()
+
+    fun selectBorderColor(): Color {
+        if (focused) return CustomTheme.colors.focusedAccentColor
+        return CustomTheme.colors.backgroundMedium
+    }
 
     // TODO: implement scrollbar
     BasicTextField(
@@ -77,14 +92,26 @@ fun SearchField(
             fontWeight = fontSettings.fontWeight,
         ),
         cursorBrush = SolidColor(fontSettings.fontColor),
-        modifier = modifier
-            // TODO: change styles & make focusable
+        modifier = Modifier
+            .focusRequester(focusRequester)
+            .focusable(interactionSource = interactionSource)
+            .onKeyEvent { keyEvent ->
+                var consumed = false
+
+                if (keyEvent.type == KeyEventType.KeyDown && keyEvent.key == Key.Enter) {
+                    if (keyEvent.isShiftPressed) onShiftEnterPressed()
+                    else onEnterPressed()
+                    consumed = true
+                }
+
+                consumed
+            }
             .onSizeChanged { searchFieldState.fieldSize.value = it }
             .clip(shape = RoundedCornerShape(borderRadius))
-            .border(BorderStroke(1.dp, CustomTheme.colors.backgroundMedium), RoundedCornerShape(borderRadius))
+            .border(BorderStroke(0.5.dp, selectBorderColor()), RoundedCornerShape(borderRadius))
             .background(CustomTheme.colors.backgroundLight)
-            .padding(10.dp, 8.dp)
-            .widthIn(120.dp, 500.dp)
+            .padding(10.dp, 6.dp)
+            .widthIn(150.dp, 500.dp)
             .scrollable(verticalScrollState, Orientation.Horizontal)
     )
 

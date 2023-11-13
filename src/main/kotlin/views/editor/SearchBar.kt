@@ -35,6 +35,8 @@ fun SearchBar(
     onSearchTextChanged: (String) -> Unit,
     canvasState: CanvasState,
 ) {
+    val enabled = (canvasState.searchState.value == SearchState.RESULTS_FOUND)
+
     Row(
         modifier = Modifier.fillMaxWidth().padding(8.dp, 3.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -43,6 +45,8 @@ fun SearchBar(
             settings,
             onSearchTextChanged = onSearchTextChanged,
             searchText = canvasState.searchedText,
+            onEnterPressed = { if (enabled) canvasState.scrollToNextSearchResult() },
+            onShiftEnterPressed = { if (enabled) canvasState.scrollToPreviousSearchResult() }
         )
 
         Text(
@@ -58,7 +62,7 @@ fun SearchBar(
 
         CustomIconButton(
             onClick = { canvasState.scrollToPreviousSearchResult() },
-            enabled = (canvasState.searchResults.size > 0),
+            enabled = (enabled /*canvasState.searchResults.size > 0*/),
             imageVector = Icons.Filled.KeyboardArrowUp,
             contentDescription = "Previous search result",
             modifier = Modifier.padding(25.dp, 0.dp, 0.dp, 0.dp)
@@ -66,7 +70,7 @@ fun SearchBar(
 
         CustomIconButton(
             onClick = { canvasState.scrollToNextSearchResult() },
-            enabled = (canvasState.searchResults.size > 0),
+            enabled = (enabled /*canvasState.searchResults.size > 0*/),
             imageVector = Icons.Filled.KeyboardArrowDown,
             contentDescription = "Next search result",
             modifier = Modifier.padding(8.dp, 0.dp, 0.dp, 0.dp)

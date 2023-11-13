@@ -45,8 +45,9 @@ class LinesPanel {
             fontWeight = FontWeight.Light
         )
     )
-    val backgroundColor = Color(49, 51,53) // dark gray
-    val splitLineColor = Color(79, 79, 79) // light dray
+    val backgroundColor = Color(49, 51,53)
+    val splitLineColor = Color(79, 79, 79)
+    val editorFocusedSplitLineColor = Color(92, 92, 92) // light dray
     val cursoredLineFontColor = Color.LightGray
 }
 
