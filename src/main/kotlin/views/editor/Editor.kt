@@ -136,14 +136,13 @@ private fun CanvasState.searchTextInFile(searchText: String) {
     if (searchText.isNotEmpty()) {
         for (index in lines.indices) {
             val line = lines[index]
-
             var startLineIndex = 0
-            var offset = line.indexOf(searchText, startLineIndex)
+            var offset = line.indexOf(searchText, startLineIndex, ignoreCase = true)
 
             while(offset != -1) {
                 searchResults.add(SearchResult(index, offset))
                 startLineIndex += (offset + searchText.length)
-                offset = line.indexOf(searchText, startLineIndex)
+                offset = line.indexOf(searchText, startLineIndex, ignoreCase = true)
             }
         }
 
