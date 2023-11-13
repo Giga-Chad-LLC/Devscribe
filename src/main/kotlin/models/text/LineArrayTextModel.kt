@@ -10,7 +10,8 @@ import kotlin.math.max
 
 // TODO: keep absolute offset for every line
 class LineArrayTextModel : TextModel {
-    private var textLines = mutableStateListOf("")
+    override var textLines = mutableStateListOf("")
+        private set
 
     override val text: String
         get() {

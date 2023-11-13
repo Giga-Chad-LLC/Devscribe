@@ -71,6 +71,7 @@ internal data class CanvasState(
 
     // TODO: move search state into different class
     val isSearchBarVisible: MutableState<Boolean>,
+    val searchedText: MutableState<String?>,
     val searchResults: SnapshotStateList<SearchResult>,
     var currentSearchResultIndex: MutableState<Int>,
     var searchResultLength: MutableState<Int>,
@@ -126,6 +127,29 @@ private fun CanvasState.coerceHorizontalOffset(offset: Float): Float {
     return offset
         .coerceAtLeast(0f)
         .coerceAtMost(getMaxHorizontalScrollOffset())
+}
+
+private fun CanvasState.searchTextInFile(searchText: String) {
+    val lines = textViewModel.textModel.textLines()
+    searchResults.clear()
+
+    if (searchText.isNotEmpty()) {
+        for (index in lines.indices) {
+            val line = lines[index]
+
+            var startLineIndex = 0
+            var offset = line.indexOf(searchText, startLineIndex)
+
+            while(offset != -1) {
+                searchResults.add(SearchResult(index, offset))
+                startLineIndex += (offset + searchText.length)
+                offset = line.indexOf(searchText, startLineIndex)
+            }
+        }
+
+        searchResultLength.value = searchText.length
+        searchedText.value = searchText
+    }
 }
 
 /**
@@ -635,7 +659,9 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
             getSymbolSize(fontFamilyResolver, textMeasurer, settings.fontSettings, density)
         },
         textViewModel = textViewModel,
+
         isSearchBarVisible = remember { mutableStateOf(false) },
+        searchedText = remember { mutableStateOf(null) },
         searchResults = remember { mutableStateListOf() },
         currentSearchResultIndex = remember { mutableStateOf(0) },
         searchResultLength = remember { mutableStateOf(0) }
@@ -655,27 +681,19 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
     // TODO: move into separate function
     val searchTextInFileDebounced = remember {
         DebounceHandler(500, coroutineScope) { searchTextWithWhitespaces: String ->
-            val lines = canvasState.textViewModel.textModel.textLines()
-            canvasState.searchResults.clear()
-
             val searchText = searchTextWithWhitespaces.replace(' ', TextConstants.nonBreakingSpaceChar)
+            canvasState.searchTextInFile(searchText)
+            canvasState.scrollToClosestSearchResult()
+        }
+    }
 
-            if (searchText.isNotEmpty()) {
-                for (index in lines.indices) {
-                    val line = lines[index]
-
-                    var startLineIndex = 0
-                    var offset = line.indexOf(searchText, startLineIndex)
-
-                    while(offset != -1) {
-                        canvasState.searchResults.add(SearchResult(index, offset))
-                        startLineIndex += (offset + line.length)
-                        offset = line.indexOf(searchText, startLineIndex)
-                    }
-                }
-
-                canvasState.searchResultLength.value = searchText.length
-                canvasState.scrollToClosestSearchResult()
+    if (canvasState.isSearchBarVisible.value) {
+        println("HERE1")
+        LaunchedEffect(canvasState.textViewModel.textModel.textLines.toList()) {
+            val text = canvasState.searchedText.value
+            println("HERE2: text='$text'")
+            if (text != null) {
+                canvasState.searchTextInFile(text)
             }
         }
     }
@@ -782,9 +800,16 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
                         val translationX = -horizontalOffset + TEXT_CANVAS_LEFT_MARGIN
                         val translationY = -verticalOffset
 
+                        // drawing highlighter of cursored line
+                        drawRect(
+                            color = Color.DarkGray,
+                            topLeft = Offset(0f, it.cursor.lineNumber * canvasState.symbolSize.height + translationY),
+                            size = Size(canvasState.canvasSize.value.width.toFloat(), canvasState.symbolSize.height)
+                        )
+
                         // TODO: temporal, move to function
                         // TODO: highlight all occurrences but mark the selected one with border (use LaunchEffect)
-
+                        // highlighting searched results
                         if (canvasState.isSearchBarVisible.value) {
                             for (index in canvasState.searchResults.indices) {
                                 val searchResult = canvasState.searchResults[index]
@@ -812,13 +837,6 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
                                 }
                             }
                         }
-
-                        // drawing highlighter of cursored line
-                        drawRect(
-                            color = Color.DarkGray,
-                            topLeft = Offset(0f, it.cursor.lineNumber * canvasState.symbolSize.height + translationY),
-                            size = Size(canvasState.canvasSize.value.width.toFloat(), canvasState.symbolSize.height)
-                        )
 
                         // drawing text that is visible in the viewport
                         val (startLineIndex, endLineIndex) = canvasState.viewportLinesRange()

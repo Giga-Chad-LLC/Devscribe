@@ -1,6 +1,9 @@
 package models.text
 
+import androidx.compose.runtime.snapshots.SnapshotStateList
+
 interface TextModel {
+    val textLines: SnapshotStateList<String>
     val text: String
     val cursor: Cursor
 
