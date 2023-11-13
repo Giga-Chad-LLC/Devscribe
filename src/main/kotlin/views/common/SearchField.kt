@@ -48,6 +48,7 @@ private fun SearchFieldState.initializeHorizontalScrollableState() =
 fun SearchField(
     settings: Settings,
     onSearchTextChanged: (String) -> Unit,
+    searchText: MutableState<String> = remember { mutableStateOf("") },
     modifier: Modifier = Modifier
 ) {
     val fontSettings = settings.searchFieldFontSettings
@@ -56,7 +57,7 @@ fun SearchField(
     val searchFieldState = SearchFieldState(
         horizontalScrollOffset = remember { mutableStateOf(0f) },
         fieldSize = remember { mutableStateOf(IntSize.Zero) },
-        searchText = remember { mutableStateOf("") },
+        searchText = searchText // remember { mutableStateOf("") },
     )
 
     val verticalScrollState = searchFieldState.initializeHorizontalScrollableState()
