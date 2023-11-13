@@ -36,7 +36,7 @@ class EditorSettings {
     val highlightingOptions by mutableStateOf(HighlightingOptions())
 }
 
-// TODO: move 'Color(90, 89, 86)' into separate variable
+// TODO: move 'Color(90, 89, 86)' into separate variable (primaryColor in CustomTheme.colors?)
 class LinesPanel {
     val fontSettings by mutableStateOf(
         FontSettings(
