@@ -4,12 +4,6 @@ import androidx.compose.foundation.*
 import androidx.compose.foundation.gestures.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.v2.ScrollbarAdapter
-import androidx.compose.material.Icon
-import androidx.compose.material.IconButton
-import androidx.compose.material.Text
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.runtime.*
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
@@ -44,11 +38,9 @@ import models.PinnedFileModel
 import models.text.Cursor
 import org.jetbrains.skia.Font
 import viewmodels.TextViewModel
-import views.common.CustomIconButton
 import views.design.CustomTheme
 import views.design.FontSettings
 import views.design.Settings
-import views.common.SearchField
 import views.editor.SearchState.*
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -140,6 +132,11 @@ private fun CanvasState.coerceHorizontalOffset(offset: Float): Float {
         .coerceAtMost(getMaxHorizontalScrollOffset())
 }
 
+
+private fun CanvasState.scrollHorizontallyByOffset(offset: Float) {
+    horizontalScrollOffset.value = coerceHorizontalOffset(horizontalScrollOffset.value + offset)
+}
+
 private fun CanvasState.searchTextInFile(uneditedSearchText: String) {
     val searchText = uneditedSearchText.replace(' ', TextConstants.nonBreakingSpaceChar)
 
@@ -227,19 +224,19 @@ private fun CanvasState.scrollToClosestSearchResult() {
     }
 
     if (index != -1) {
-        scrollByKSearchResult(index - currentSearchResultIndex.value)
+        scrollByKSearchResults(index - currentSearchResultIndex.value)
     }
 }
 
 fun CanvasState.scrollToNextSearchResult() {
-    scrollByKSearchResult(1)
+    scrollByKSearchResults(1)
 }
 
 fun CanvasState.scrollToPreviousSearchResult() {
-    scrollByKSearchResult(-1)
+    scrollByKSearchResults(-1)
 }
 
-private fun CanvasState.scrollByKSearchResult(k: Int) {
+private fun CanvasState.scrollByKSearchResults(k: Int) {
     val (startLineIndex, endLineIndex) = viewportLinesRange()
     val centerLineIndex = (startLineIndex + endLineIndex) / 2
 
@@ -251,12 +248,26 @@ private fun CanvasState.scrollByKSearchResult(k: Int) {
 
     val linesDifference = centerLineIndex - nextSearchResult.lineIndex
 
+
     println("nextSearchResultIndex=${nextSearchResultIndex} " +
             "nextSearchResult=${nextSearchResult} " +
             "lineDiff=${linesDifference}")
 
     currentSearchResultIndex.value = nextSearchResultIndex
     scrollVerticallyByLines(linesDifference)
+
+    // scrolling horizontally to place the result inside viewport
+    val resultStartHorizontalOffset = TEXT_CANVAS_LEFT_MARGIN + nextSearchResult.lineOffset * symbolSize.width
+    val resultEndHorizontalOffset = resultStartHorizontalOffset + searchedText.value.length * symbolSize.width
+
+    if (resultStartHorizontalOffset < horizontalScrollOffset.value) {
+        val offset = horizontalScrollOffset.value - resultStartHorizontalOffset
+        scrollHorizontallyByOffset(-offset)
+    }
+    else if (resultEndHorizontalOffset > horizontalScrollOffset.value + canvasSize.value.width) {
+        val offset = resultEndHorizontalOffset - (horizontalScrollOffset.value + canvasSize.value.width)
+        scrollHorizontallyByOffset(offset)
+    }
 }
 
 @Composable
