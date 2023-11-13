@@ -1,9 +1,7 @@
 package models.text
 
-import androidx.compose.runtime.snapshots.SnapshotStateList
 
 interface TextModel {
-    val textLines: SnapshotStateList<String>
     val text: String
     val cursor: Cursor
 
@@ -34,14 +32,16 @@ interface TextModel {
     /**
      * Should be overwritten by an implementation because default version works for O(L) where L is the sum of lengths of all strings.
      */
-    fun linesCount(): Int {
-        return text.split(System.lineSeparator()).size
-    }
+    fun linesCount(): Int
 
     fun lineLength(lineIndex: Int): Int
 
     fun totalOffsetOfLine(lineIndex: Int): Int
 
+    /**
+     * Implementation must ensure that a composable component is able to listen for
+     * the updates of the lines list using LaunchedEffect
+     */
     fun textLines(): List<String>
 
     /**
@@ -53,7 +53,5 @@ interface TextModel {
     /**
      * Should be overwritten by an implementation because default version works for O(L) where L is the sum of lengths of all strings.
      */
-    fun maxLineLength(): Int {
-        return text.split(System.lineSeparator()).maxOfOrNull { s -> s.length } ?: 0
-    }
+    fun maxLineLength(): Int
 }

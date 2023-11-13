@@ -18,11 +18,6 @@ class TextViewModel(coroutineScope: CoroutineScope, private var activeFileModel:
             return activeFileModel.textModel
         }
 
-    val text: String
-        get() {
-            return activeFileModel.textModel.text
-        }
-
     val cursor: Cursor
         get() {
             return activeFileModel.textModel.cursor

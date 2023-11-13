@@ -71,7 +71,7 @@ internal data class CanvasState(
 
     // TODO: move search state into different class
     val isSearchBarVisible: MutableState<Boolean>,
-    val searchedText: MutableState<String?>,
+    val searchedText: MutableState<String>,
     val searchResults: SnapshotStateList<SearchResult>,
     var currentSearchResultIndex: MutableState<Int>,
     var searchResultLength: MutableState<Int>,
@@ -129,7 +129,9 @@ private fun CanvasState.coerceHorizontalOffset(offset: Float): Float {
         .coerceAtMost(getMaxHorizontalScrollOffset())
 }
 
-private fun CanvasState.searchTextInFile(searchText: String) {
+private fun CanvasState.searchTextInFile(uneditedSearchText: String) {
+    val searchText = uneditedSearchText.replace(' ', TextConstants.nonBreakingSpaceChar)
+
     val lines = textViewModel.textModel.textLines()
     searchResults.clear()
 
@@ -659,8 +661,9 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
         },
         textViewModel = textViewModel,
 
+        // TODO: move into another state object
         isSearchBarVisible = remember { mutableStateOf(false) },
-        searchedText = remember { mutableStateOf(null) },
+        searchedText = remember { mutableStateOf("") },
         searchResults = remember { mutableStateListOf() },
         currentSearchResultIndex = remember { mutableStateOf(0) },
         searchResultLength = remember { mutableStateOf(0) }
@@ -679,21 +682,15 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
 
     // TODO: move into separate function
     val searchTextInFileDebounced = remember {
-        DebounceHandler(500, coroutineScope) { searchTextWithWhitespaces: String ->
-            val searchText = searchTextWithWhitespaces.replace(' ', TextConstants.nonBreakingSpaceChar)
+        DebounceHandler(500, coroutineScope) { searchText: String ->
             canvasState.searchTextInFile(searchText)
             canvasState.scrollToClosestSearchResult()
         }
     }
 
     if (canvasState.isSearchBarVisible.value) {
-        println("HERE1")
-        LaunchedEffect(canvasState.textViewModel.textModel.textLines.toList()) {
-            val text = canvasState.searchedText.value
-            println("HERE2: text='$text'")
-            if (text != null) {
-                canvasState.searchTextInFile(text)
-            }
+        LaunchedEffect(canvasState.textViewModel.textModel.textLines()) {
+            canvasState.searchTextInFile(canvasState.searchedText.value)
         }
     }
 
