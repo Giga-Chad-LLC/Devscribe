@@ -18,6 +18,7 @@ class Settings {
 
 class EditorSettings {
     val linesPanel by mutableStateOf(LinesPanel())
+    val highlightingOptions by mutableStateOf(HighlightingOptions())
 }
 
 // TODO: move 'Color(90, 89, 86)' into separate variable
@@ -32,6 +33,10 @@ class LinesPanel {
     val backgroundColor = Color(49, 51,53) // dark gray
     val splitLineColor = Color(79, 79, 79) // light dray
     val cursoredLineFontColor = Color.LightGray
+}
+
+class HighlightingOptions {
+    val searchResultColor = Color(0xFF32593D)
 }
 
 class SearchFieldSettings {

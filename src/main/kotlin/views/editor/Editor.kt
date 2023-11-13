@@ -307,6 +307,38 @@ private fun CanvasState.initializeHorizontalScrollbar() = rememberScrollableStat
     scrollConsumed
 }
 
+private fun DrawScope.highlightSearchResults(
+    settings: Settings,
+    canvasState: CanvasState,
+    initialOffset: Offset
+) {
+    for (index in canvasState.searchResults.indices) {
+        val searchResult = canvasState.searchResults[index]
+
+        val offsetX = initialOffset.x + searchResult.lineOffset * canvasState.symbolSize.width //translationX
+        val offsetY = initialOffset.y + searchResult.lineIndex * canvasState.symbolSize.height // translationY
+
+        val highlighterWidth = canvasState.searchResultLength.value * canvasState.symbolSize.width
+        val highlighterHeight = canvasState.symbolSize.height
+
+        drawRect(
+            color = settings.editorSettings.highlightingOptions.searchResultColor,
+            topLeft = Offset(offsetX, offsetY),
+            size = Size(highlighterWidth, highlighterHeight)
+        )
+
+        // highlighting with stroke currently selected searched result
+        if (canvasState.currentSearchResultIndex.value == index) {
+            drawRect(
+                color = Color.White,
+                topLeft = Offset(offsetX, offsetY),
+                style = Stroke(0.5.dp.toPx()),
+                size = Size(highlighterWidth, highlighterHeight)
+            )
+        }
+    }
+}
+
 
 private fun scrollOnCursorOutOfCanvasViewport(
     coroutineScope: CoroutineScope,
@@ -804,31 +836,11 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
                         // TODO: highlight all occurrences but mark the selected one with border (use LaunchEffect)
                         // highlighting searched results
                         if (canvasState.isSearchBarVisible.value) {
-                            for (index in canvasState.searchResults.indices) {
-                                val searchResult = canvasState.searchResults[index]
-
-                                val offsetX = searchResult.lineOffset * canvasState.symbolSize.width + translationX
-                                val offsetY = searchResult.lineIndex * canvasState.symbolSize.height + translationY
-
-                                val highlighterWidth = canvasState.searchResultLength.value * canvasState.symbolSize.width
-                                val highlighterHeight = canvasState.symbolSize.height
-
-                                drawRect(
-                                    color = Color(0xFF32593D),
-                                    topLeft = Offset(offsetX, offsetY),
-                                    size = Size(highlighterWidth, highlighterHeight)
-                                )
-
-                                // highlighting with stroke currently selected searched result
-                                if (canvasState.currentSearchResultIndex.value == index) {
-                                    drawRect(
-                                        color = Color.White,
-                                        topLeft = Offset(offsetX, offsetY),
-                                        style = Stroke(0.5.dp.toPx()),
-                                        size = Size(highlighterWidth, highlighterHeight)
-                                    )
-                                }
-                            }
+                            highlightSearchResults(
+                                settings,
+                                canvasState,
+                                Offset(translationX, translationY)
+                            )
                         }
 
                         // drawing text that is visible in the viewport
