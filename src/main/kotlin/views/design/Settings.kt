@@ -12,7 +12,22 @@ import androidx.compose.ui.unit.sp
 // TODO: move settings into categories represented by classes (as with editor settings)
 class Settings {
     var fontSettings by mutableStateOf(FontSettings())
-    val searchFieldSettings by mutableStateOf(SearchFieldSettings())
+    val searchFieldFontSettings by mutableStateOf(
+        FontSettings(
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Light,
+            fontColor = Color.White,
+            fontFamily = FontFamily.SansSerif,
+        )
+    )
+    val searchBarFontSettings by mutableStateOf(
+        FontSettings(
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Light,
+            fontColor = CustomTheme.colors.primaryColor,
+            fontFamily = FontFamily.SansSerif,
+        )
+    )
     val editorSettings by mutableStateOf(EditorSettings())
 }
 
@@ -37,16 +52,9 @@ class LinesPanel {
 
 class HighlightingOptions {
     val searchResultColor = Color(0xFF32593D)
+    val selectedSearchResultColor = CustomTheme.colors.focusedAccentColor
 }
 
-class SearchFieldSettings {
-    val fontSettings by mutableStateOf(
-        FontSettings(
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Light,
-        )
-    )
-}
 
 data class FontSettings(
     val fontColor: Color = Color.White,

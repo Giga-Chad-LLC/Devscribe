@@ -61,18 +61,18 @@ internal const val LINES_PANEL_LEFT_PADDING = 40f
 internal const val TEXT_CANVAS_LEFT_MARGIN = 8f
 
 
-internal data class SearchResult(
+data class SearchResult(
     val lineIndex: Int,
     val lineOffset: Int,
 )
 
-internal enum class SearchState {
+enum class SearchState {
     IDLE,
     RESULTS_FOUND,
     NO_RESULTS_FOUND,
 }
 
-internal data class CanvasState(
+data class CanvasState(
     val verticalScrollOffset: MutableState<Float>,
     val horizontalScrollOffset: MutableState<Float>,
     val canvasSize: MutableState<IntSize>,
@@ -231,11 +231,11 @@ private fun CanvasState.scrollToClosestSearchResult() {
     }
 }
 
-private fun CanvasState.scrollToNextSearchResult() {
+fun CanvasState.scrollToNextSearchResult() {
     scrollByKSearchResult(1)
 }
 
-private fun CanvasState.scrollToPreviousSearchResult() {
+fun CanvasState.scrollToPreviousSearchResult() {
     scrollByKSearchResult(-1)
 }
 
@@ -338,9 +338,9 @@ private fun DrawScope.highlightSearchResults(
         // highlighting with stroke currently selected searched result
         if (canvasState.currentSearchResultIndex.value == index) {
             drawRect(
-                color = Color.White,
+                color = settings.editorSettings.highlightingOptions.selectedSearchResultColor,
                 topLeft = Offset(offsetX, offsetY),
-                style = Stroke(0.5.dp.toPx()),
+                style = Stroke(1.dp.toPx()),
                 size = Size(highlighterWidth, highlighterHeight)
             )
         }
@@ -669,14 +669,6 @@ private fun Modifier.handleKeyboardInput(canvasState: CanvasState): Modifier {
     )
 }
 
-private fun selectSearchResultMessage(canvasState: CanvasState): String {
-    return when (canvasState.searchState.value) {
-        IDLE -> "0 results"
-        RESULTS_FOUND -> "${canvasState.currentSearchResultIndex.value + 1}/${canvasState.searchResults.size}"
-        NO_RESULTS_FOUND -> "No results"
-    }
-}
-
 
 @OptIn(ExperimentalTextApi::class)
 @Composable
@@ -750,36 +742,11 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
     Column {
         // search bar
         if (canvasState.isSearchBarVisible.value) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(8.dp, 3.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                SearchField(
-                    settings,
-                    onSearchTextChanged = { text -> searchTextInFileDebounced.run(text) }
-                )
-
-                Text(
-                    text = selectSearchResultMessage(canvasState),
-                    modifier = Modifier.padding(12.dp, 0.dp, 0.dp, 0.dp)
-                )
-
-                CustomIconButton(
-                    onClick = { canvasState.scrollToPreviousSearchResult() },
-                    enabled = (canvasState.searchResults.size > 0),
-                    imageVector = Icons.Filled.KeyboardArrowUp,
-                    contentDescription = "Previous search result",
-                    modifier = Modifier.padding(25.dp, 0.dp, 0.dp, 0.dp)
-                )
-
-                CustomIconButton(
-                    onClick = { canvasState.scrollToNextSearchResult() },
-                    enabled = (canvasState.searchResults.size > 0),
-                    imageVector = Icons.Filled.KeyboardArrowDown,
-                    contentDescription = "Next search result",
-                    modifier = Modifier.padding(8.dp, 0.dp, 0.dp, 0.dp)
-                )
-            }
+            SearchBar(
+                settings = settings,
+                onSearchTextChanged =  { text -> searchTextInFileDebounced.run(text) },
+                canvasState = canvasState,
+            )
         }
 
         // text area

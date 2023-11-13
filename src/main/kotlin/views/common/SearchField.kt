@@ -50,7 +50,7 @@ fun SearchField(
     onSearchTextChanged: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val fontSettings = settings.searchFieldSettings.fontSettings
+    val fontSettings = settings.searchFieldFontSettings
     val borderRadius = 6.dp
 
     val searchFieldState = SearchFieldState(
