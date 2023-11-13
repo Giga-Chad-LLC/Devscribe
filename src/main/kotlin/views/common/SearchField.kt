@@ -1,4 +1,4 @@
-package views.common.text
+package views.common
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -8,19 +8,21 @@ import androidx.compose.foundation.gestures.rememberScrollableState
 import androidx.compose.foundation.gestures.scrollable
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import views.common.design.CustomTheme
-import views.common.design.Settings
+import views.design.CustomTheme
+import views.design.Settings
 
 
 
@@ -46,8 +48,10 @@ private fun SearchFieldState.initializeHorizontalScrollableState() =
 fun SearchField(
     settings: Settings,
     onSearchTextChanged: (String) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val fontSettings = settings.searchFieldSettings.fontSettings
+    val borderRadius = 6.dp
 
     val searchFieldState = SearchFieldState(
         horizontalScrollOffset = remember { mutableStateOf(0f) },
@@ -72,12 +76,14 @@ fun SearchField(
             fontWeight = fontSettings.fontWeight,
         ),
         cursorBrush = SolidColor(fontSettings.fontColor),
-        modifier = Modifier
+        modifier = modifier
+            // TODO: change styles & make focusable
             .onSizeChanged { searchFieldState.fieldSize.value = it }
+            .clip(shape = RoundedCornerShape(borderRadius))
+            .border(BorderStroke(1.dp, CustomTheme.colors.backgroundMedium), RoundedCornerShape(borderRadius))
             .background(CustomTheme.colors.backgroundLight)
-            .border(BorderStroke(1.dp, CustomTheme.colors.backgroundMedium))
             .padding(10.dp, 8.dp)
-            .widthIn(0.dp, 300.dp)
+            .widthIn(120.dp, 500.dp)
             .scrollable(verticalScrollState, Orientation.Horizontal)
     )
 

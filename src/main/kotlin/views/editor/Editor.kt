@@ -4,8 +4,12 @@ import androidx.compose.foundation.*
 import androidx.compose.foundation.gestures.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.v2.ScrollbarAdapter
-import androidx.compose.material.Button
+import androidx.compose.material.Icon
+import androidx.compose.material.IconButton
 import androidx.compose.material.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.runtime.*
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
@@ -18,9 +22,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.DrawStyle
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.input.pointer.pointerInput
@@ -42,10 +44,12 @@ import models.PinnedFileModel
 import models.text.Cursor
 import org.jetbrains.skia.Font
 import viewmodels.TextViewModel
-import views.common.design.CustomTheme
-import views.common.design.FontSettings
-import views.common.design.Settings
-import views.common.text.SearchField
+import views.common.CustomIconButton
+import views.design.CustomTheme
+import views.design.FontSettings
+import views.design.Settings
+import views.common.SearchField
+import views.editor.SearchState.*
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -62,6 +66,12 @@ internal data class SearchResult(
     val lineOffset: Int,
 )
 
+internal enum class SearchState {
+    IDLE,
+    RESULTS_FOUND,
+    NO_RESULTS_FOUND,
+}
+
 internal data class CanvasState(
     val verticalScrollOffset: MutableState<Float>,
     val horizontalScrollOffset: MutableState<Float>,
@@ -71,6 +81,7 @@ internal data class CanvasState(
 
     // TODO: move search state into different class
     val isSearchBarVisible: MutableState<Boolean>,
+    val searchState: MutableState<SearchState>,
     val searchedText: MutableState<String>,
     val searchResults: SnapshotStateList<SearchResult>,
     var currentSearchResultIndex: MutableState<Int>,
@@ -112,9 +123,9 @@ private fun CanvasState.getMaxHorizontalScrollOffset(): Float {
 private fun CanvasState.scrollVerticallyByLines(k: Int) {
     scrollVerticallyByOffset(-1f * k * symbolSize.height)
 }
+
 private fun CanvasState.scrollVerticallyByOffset(offset: Float) {
     verticalScrollOffset.value = coerceVerticalOffset(verticalScrollOffset.value + offset)
-    println("verticalScrollOffset=${verticalScrollOffset.value}")
 }
 
 private fun CanvasState.coerceVerticalOffset(offset: Float): Float {
@@ -150,6 +161,16 @@ private fun CanvasState.searchTextInFile(uneditedSearchText: String) {
 
         searchResultLength.value = searchText.length
         searchedText.value = searchText
+
+        if (searchResults.isNotEmpty()) {
+            searchState.value = RESULTS_FOUND
+        }
+        else {
+            searchState.value = NO_RESULTS_FOUND
+        }
+    }
+    else {
+        searchState.value = IDLE
     }
 }
 
@@ -208,21 +229,6 @@ private fun CanvasState.scrollToClosestSearchResult() {
     if (index != -1) {
         scrollByKSearchResult(index - currentSearchResultIndex.value)
     }
-
-    /*
-    var closestSearchResult: SearchResult? = null
-    for (result in searchResults) {
-        if (closestSearchResult == null ||
-            abs(centerLineIndex - closestSearchResult.lineIndex) > abs(centerLineIndex - result.lineIndex)) {
-            closestSearchResult = result
-        }
-    }
-
-    if (closestSearchResult != null) {
-        currentSearchResultIndex.value = closestSearchResult.lineIndex
-        scrollVerticallyByLines(centerLineIndex - closestSearchResult.lineIndex)
-    }
-    */
 }
 
 private fun CanvasState.scrollToNextSearchResult() {
@@ -237,8 +243,10 @@ private fun CanvasState.scrollByKSearchResult(k: Int) {
     val (startLineIndex, endLineIndex) = viewportLinesRange()
     val centerLineIndex = (startLineIndex + endLineIndex) / 2
 
-    assert(searchResults.isNotEmpty()) { "List must contain search results" }
-    val nextSearchResultIndex = (currentSearchResultIndex.value + k + searchResults.size) % searchResults.size
+    val size = searchResults.size
+    assert(size > 0) { "List must be non-empty" }
+
+    val nextSearchResultIndex = (currentSearchResultIndex.value + k + size) % size
     val nextSearchResult = searchResults[nextSearchResultIndex]
 
     val linesDifference = centerLineIndex - nextSearchResult.lineIndex
@@ -590,7 +598,11 @@ private fun Modifier.handleKeyboardInput(canvasState: CanvasState): Modifier {
             .onKeyEvent { keyEvent ->
                 var consumed = false
 
-                if (keyEvent.type == KeyEventType.KeyDown && keyEvent.key == Key.Backspace) {
+                if (keyEvent.type == KeyEventType.KeyDown && keyEvent.key == Key.Escape) {
+                    canvasState.isSearchBarVisible.value = false
+                    consumed = true
+                }
+                else if (keyEvent.type == KeyEventType.KeyDown && keyEvent.key == Key.Backspace) {
                     textViewModel.backspace()
                     consumed = true
                 }
@@ -657,6 +669,14 @@ private fun Modifier.handleKeyboardInput(canvasState: CanvasState): Modifier {
     )
 }
 
+private fun selectSearchResultMessage(canvasState: CanvasState): String {
+    return when (canvasState.searchState.value) {
+        IDLE -> "0 results"
+        RESULTS_FOUND -> "${canvasState.currentSearchResultIndex.value + 1}/${canvasState.searchResults.size}"
+        NO_RESULTS_FOUND -> "No results"
+    }
+}
+
 
 @OptIn(ExperimentalTextApi::class)
 @Composable
@@ -695,6 +715,7 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
 
         // TODO: move into another state object
         isSearchBarVisible = remember { mutableStateOf(false) },
+        searchState = remember { mutableStateOf(IDLE) },
         searchedText = remember { mutableStateOf("") },
         searchResults = remember { mutableStateListOf() },
         currentSearchResultIndex = remember { mutableStateOf(0) },
@@ -712,7 +733,6 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
         density,
     )
 
-    // TODO: move into separate function
     val searchTextInFileDebounced = remember {
         DebounceHandler(500, coroutineScope) { searchText: String ->
             canvasState.searchTextInFile(searchText)
@@ -721,6 +741,7 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
     }
 
     if (canvasState.isSearchBarVisible.value) {
+        // redraw search results highlighters after text modification
         LaunchedEffect(canvasState.textViewModel.textModel.textLines()) {
             canvasState.searchTextInFile(canvasState.searchedText.value)
         }
@@ -730,26 +751,34 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
         // search bar
         if (canvasState.isSearchBarVisible.value) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().padding(8.dp, 3.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 SearchField(
                     settings,
-                    onSearchTextChanged = { text ->
-                        searchTextInFileDebounced.run(text)
-                    }
+                    onSearchTextChanged = { text -> searchTextInFileDebounced.run(text) }
                 )
 
-                Text("${canvasState.currentSearchResultIndex.value + 1}/${canvasState.searchResults.size}")
+                Text(
+                    text = selectSearchResultMessage(canvasState),
+                    modifier = Modifier.padding(12.dp, 0.dp, 0.dp, 0.dp)
+                )
 
-                Button(onClick = {
-                    canvasState.scrollToPreviousSearchResult()
-                }) {
-                    Text("Prev")
-                }
-                Button(onClick = { canvasState.scrollToNextSearchResult() }) {
-                    Text("Next")
-                }
+                CustomIconButton(
+                    onClick = { canvasState.scrollToPreviousSearchResult() },
+                    enabled = (canvasState.searchResults.size > 0),
+                    imageVector = Icons.Filled.KeyboardArrowUp,
+                    contentDescription = "Previous search result",
+                    modifier = Modifier.padding(25.dp, 0.dp, 0.dp, 0.dp)
+                )
+
+                CustomIconButton(
+                    onClick = { canvasState.scrollToNextSearchResult() },
+                    enabled = (canvasState.searchResults.size > 0),
+                    imageVector = Icons.Filled.KeyboardArrowDown,
+                    contentDescription = "Next search result",
+                    modifier = Modifier.padding(8.dp, 0.dp, 0.dp, 0.dp)
+                )
             }
         }
 

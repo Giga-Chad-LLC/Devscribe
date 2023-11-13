@@ -1,4 +1,4 @@
-package views.common.design
+package views.design
 
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily

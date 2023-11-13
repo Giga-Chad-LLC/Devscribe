@@ -1,4 +1,4 @@
-package views.common.design
+package views.design
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
