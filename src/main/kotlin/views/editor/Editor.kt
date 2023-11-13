@@ -143,7 +143,7 @@ private fun CanvasState.searchTextInFile(uneditedSearchText: String) {
 
             while(offset != -1) {
                 searchResults.add(SearchResult(index, offset))
-                startLineIndex += (offset + searchText.length)
+                startLineIndex = (offset + searchText.length)
                 offset = line.indexOf(searchText, startLineIndex, ignoreCase = true)
             }
         }
@@ -771,8 +771,6 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
                         // TODO: move into method
                         // scrolling on cursor getting out of viewport
                         if (previousCursorState.offset != it.cursor.offset) {
-                            println("previousCursorState=${previousCursorState} " +
-                                    "currentCursor=${it.cursor}")
                             scrollHorizontallyOnCursorOutOfCanvasViewport(
                                 coroutineScope = coroutineScope,
                                 canvasState = canvasState,
@@ -790,7 +788,6 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
                             )
 
                             previousCursorState = Cursor(it.cursor)
-                            println("updatedPrev=${previousCursorState}")
                         }
 
                         val translationX = -horizontalOffset + TEXT_CANVAS_LEFT_MARGIN
@@ -842,6 +839,7 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
                             text = AnnotatedString(viewportVisibleText),
                             style = editorTextStyle
                         )
+
                         drawText(
                             measuredText,
                             topLeft = Offset(translationX, translationY + startLineIndex * canvasState.symbolSize.height)
