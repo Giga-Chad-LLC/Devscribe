@@ -1,16 +1,15 @@
 package views.editor
 
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.Text
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.TextStyle
@@ -36,9 +35,13 @@ fun SearchBar(
     canvasState: CanvasState,
 ) {
     val enabled = (canvasState.searchState.value == SearchState.RESULTS_FOUND)
+    val scrollState = rememberScrollState()
 
     Row(
-        modifier = Modifier.fillMaxWidth().padding(8.dp, 3.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(8.dp, 4.dp)
+            .horizontalScroll(scrollState),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         SearchField(
