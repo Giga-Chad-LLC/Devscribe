@@ -2,16 +2,18 @@ package views.editor
 
 import androidx.compose.foundation.*
 import androidx.compose.foundation.gestures.*
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.v2.ScrollbarAdapter
 import androidx.compose.runtime.*
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
@@ -28,17 +30,21 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.platform.FontLoadResult
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import common.TextConstants
 import common.ceilToInt
 import common.isPrintableSymbolAction
+import components.DebounceHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import models.PinnedFileModel
 import models.text.Cursor
 import org.jetbrains.skia.Font
 import viewmodels.TextViewModel
-import views.common.CustomTheme
-import views.common.FontSettings
-import views.common.Settings
+import views.design.CustomTheme
+import views.design.FontSettings
+import views.design.Settings
+import views.editor.SearchState.*
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 
@@ -48,12 +54,32 @@ internal const val LINES_PANEL_RIGHT_PADDING = 10f
 internal const val LINES_PANEL_LEFT_PADDING = 40f
 internal const val TEXT_CANVAS_LEFT_MARGIN = 8f
 
-internal data class CanvasState(
+
+data class SearchResult(
+    val lineIndex: Int,
+    val lineOffset: Int,
+)
+
+enum class SearchState {
+    IDLE,
+    RESULTS_FOUND,
+    NO_RESULTS_FOUND,
+}
+
+data class CanvasState(
     val verticalScrollOffset: MutableState<Float>,
     val horizontalScrollOffset: MutableState<Float>,
     val canvasSize: MutableState<IntSize>,
     val symbolSize: Size,
     val textViewModel: TextViewModel,
+
+    // TODO: move search state into different class
+    val isSearchBarVisible: MutableState<Boolean>,
+    val searchState: MutableState<SearchState>,
+    val searchedText: MutableState<String>,
+    val searchResults: SnapshotStateList<SearchResult>,
+    var currentSearchResultIndex: MutableState<Int>,
+    var searchResultLength: MutableState<Int>,
 )
 
 private fun CanvasState.getMaxVerticalScrollOffset(): Float {
@@ -91,6 +117,7 @@ private fun CanvasState.getMaxHorizontalScrollOffset(): Float {
 private fun CanvasState.scrollVerticallyByLines(k: Int) {
     scrollVerticallyByOffset(-1f * k * symbolSize.height)
 }
+
 private fun CanvasState.scrollVerticallyByOffset(offset: Float) {
     verticalScrollOffset.value = coerceVerticalOffset(verticalScrollOffset.value + offset)
 }
@@ -105,6 +132,45 @@ private fun CanvasState.coerceHorizontalOffset(offset: Float): Float {
     return offset
         .coerceAtLeast(0f)
         .coerceAtMost(getMaxHorizontalScrollOffset())
+}
+
+
+private fun CanvasState.scrollHorizontallyByOffset(offset: Float) {
+    horizontalScrollOffset.value = coerceHorizontalOffset(horizontalScrollOffset.value + offset)
+}
+
+private fun CanvasState.searchTextInFile(uneditedSearchText: String) {
+    val searchText = uneditedSearchText.replace(' ', TextConstants.nonBreakingSpaceChar)
+
+    val lines = textViewModel.textModel.textLines()
+    searchResults.clear()
+
+    if (searchText.isNotEmpty()) {
+        for (index in lines.indices) {
+            val line = lines[index]
+            var startLineIndex = 0
+            var offset = line.indexOf(searchText, startLineIndex, ignoreCase = true)
+
+            while(offset != -1) {
+                searchResults.add(SearchResult(index, offset))
+                startLineIndex = (offset + searchText.length)
+                offset = line.indexOf(searchText, startLineIndex, ignoreCase = true)
+            }
+        }
+
+        searchResultLength.value = searchText.length
+        searchedText.value = searchText
+
+        if (searchResults.isNotEmpty()) {
+            searchState.value = RESULTS_FOUND
+        }
+        else {
+            searchState.value = NO_RESULTS_FOUND
+        }
+    }
+    else {
+        searchState.value = IDLE
+    }
 }
 
 /**
@@ -141,9 +207,68 @@ private fun CanvasState.viewportLinesRange(): Pair<Int, Int> {
 
 private fun CanvasState.calculateViewportVisibleText(): String {
     val (startLineIndex, endLineIndex) = viewportLinesRange()
-    //println("startLineIndex=$startLineIndex, endLineIndex=$endLineIndex")
-
     return textViewModel.textModel.textInLinesRange(startLineIndex, endLineIndex)
+}
+
+private fun CanvasState.scrollToClosestSearchResult() {
+    val (startLineIndex, endLineIndex) = viewportLinesRange()
+    val centerLineIndex = (startLineIndex + endLineIndex) / 2
+
+    var index = -1
+    var diff = -1
+
+    // TODO: make faster: searchResults are sorted by line index, use lower/upper bound
+    for (i in searchResults.indices) {
+        if (index == -1 || diff > abs(centerLineIndex - searchResults[i].lineIndex)) {
+            index = i
+            diff = abs(centerLineIndex - searchResults[i].lineIndex)
+        }
+    }
+
+    if (index != -1) {
+        scrollByKSearchResults(index - currentSearchResultIndex.value)
+    }
+}
+
+fun CanvasState.scrollToNextSearchResult() {
+    scrollByKSearchResults(1)
+}
+
+fun CanvasState.scrollToPreviousSearchResult() {
+    scrollByKSearchResults(-1)
+}
+
+private fun CanvasState.scrollByKSearchResults(k: Int) {
+    val (startLineIndex, endLineIndex) = viewportLinesRange()
+    val centerLineIndex = (startLineIndex + endLineIndex) / 2
+
+    val size = searchResults.size
+    assert(size > 0) { "List must be non-empty" }
+
+    val nextSearchResultIndex = (currentSearchResultIndex.value + k + size) % size
+    val nextSearchResult = searchResults[nextSearchResultIndex]
+
+    val linesDifference = centerLineIndex - nextSearchResult.lineIndex
+
+    /*println("nextSearchResultIndex=${nextSearchResultIndex} " +
+            "nextSearchResult=${nextSearchResult} " +
+            "lineDiff=${linesDifference}")*/
+
+    currentSearchResultIndex.value = nextSearchResultIndex
+    scrollVerticallyByLines(linesDifference)
+
+    // scrolling horizontally to place the result inside viewport
+    val resultStartHorizontalOffset = TEXT_CANVAS_LEFT_MARGIN + nextSearchResult.lineOffset * symbolSize.width
+    val resultEndHorizontalOffset = resultStartHorizontalOffset + searchedText.value.length * symbolSize.width
+
+    if (resultStartHorizontalOffset < horizontalScrollOffset.value) {
+        val offset = horizontalScrollOffset.value - resultStartHorizontalOffset
+        scrollHorizontallyByOffset(-offset)
+    }
+    else if (resultEndHorizontalOffset > horizontalScrollOffset.value + canvasSize.value.width) {
+        val offset = resultEndHorizontalOffset - (horizontalScrollOffset.value + canvasSize.value.width)
+        scrollHorizontallyByOffset(offset)
+    }
 }
 
 @Composable
@@ -200,6 +325,38 @@ private fun CanvasState.initializeHorizontalScrollbar() = rememberScrollableStat
     val scrollConsumed = horizontalScrollOffset.value - newScrollOffset
     horizontalScrollOffset.value = newScrollOffset
     scrollConsumed
+}
+
+private fun DrawScope.highlightSearchResults(
+    settings: Settings,
+    canvasState: CanvasState,
+    initialOffset: Offset
+) {
+    for (index in canvasState.searchResults.indices) {
+        val searchResult = canvasState.searchResults[index]
+
+        val offsetX = initialOffset.x + searchResult.lineOffset * canvasState.symbolSize.width //translationX
+        val offsetY = initialOffset.y + searchResult.lineIndex * canvasState.symbolSize.height // translationY
+
+        val highlighterWidth = canvasState.searchResultLength.value * canvasState.symbolSize.width
+        val highlighterHeight = canvasState.symbolSize.height
+
+        drawRect(
+            color = settings.editorSettings.highlightingOptions.searchResultColor,
+            topLeft = Offset(offsetX, offsetY),
+            size = Size(highlighterWidth, highlighterHeight)
+        )
+
+        // highlighting with stroke currently selected searched result
+        if (canvasState.currentSearchResultIndex.value == index) {
+            drawRect(
+                color = settings.editorSettings.highlightingOptions.selectedSearchResultColor,
+                topLeft = Offset(offsetX, offsetY),
+                style = Stroke(1.dp.toPx()),
+                size = Size(highlighterWidth, highlighterHeight)
+            )
+        }
+    }
 }
 
 
@@ -333,6 +490,8 @@ private fun determineLinesPanelSize(
  * Draws panel with line numbers.
  * @return Size of the drawn panel.
  */
+// TODO: move lines panel into separate file
+// TODO: move some extensions into separate file
 @OptIn(ExperimentalTextApi::class)
 private fun DrawScope.drawLinesPanel(
     fontFamilyResolver: FontFamily.Resolver,
@@ -341,6 +500,7 @@ private fun DrawScope.drawLinesPanel(
     canvasState: CanvasState,
     cursor: Cursor,
     settings: Settings,
+    editorFocused: Boolean,
     density: Float
 ) {
     val linesPanelSettings = settings.editorSettings.linesPanel
@@ -382,7 +542,7 @@ private fun DrawScope.drawLinesPanel(
      * Drawing a split line on the right border of the lines panel
      */
     drawRect(
-        color = linesPanelSettings.splitLineColor,
+        color = if (editorFocused) linesPanelSettings.editorFocusedSplitLineColor else linesPanelSettings.splitLineColor,
         topLeft = Offset(linesPanelSize.width - 1f, 0f),
         size = Size(1f, linesPanelSize.height)
     )
@@ -451,7 +611,11 @@ private fun Modifier.handleKeyboardInput(canvasState: CanvasState): Modifier {
             .onKeyEvent { keyEvent ->
                 var consumed = false
 
-                if (keyEvent.type == KeyEventType.KeyDown && keyEvent.key == Key.Backspace) {
+                if (keyEvent.type == KeyEventType.KeyDown && keyEvent.key == Key.Escape) {
+                    canvasState.isSearchBarVisible.value = false
+                    consumed = true
+                }
+                else if (keyEvent.type == KeyEventType.KeyDown && keyEvent.key == Key.Backspace) {
                     textViewModel.backspace()
                     consumed = true
                 }
@@ -505,6 +669,9 @@ private fun Modifier.handleKeyboardInput(canvasState: CanvasState): Modifier {
                     textViewModel.delete()
                     consumed = true
                 }
+                else if (keyEvent.type == KeyEventType.KeyDown && keyEvent.isCtrlPressed && keyEvent.key == Key.F) {
+                    canvasState.isSearchBarVisible.value = true
+                }
                 else if (keyEvent.type == KeyEventType.KeyDown && isPrintableSymbolAction(keyEvent)) {
                     textViewModel.symbol(keyEvent.utf16CodePoint.toChar())
                     consumed = true
@@ -522,7 +689,7 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
     val coroutineScope = rememberCoroutineScope()
     val textMeasurer = rememberTextMeasurer()
     val textViewModel by remember { mutableStateOf(TextViewModel(coroutineScope, activeFileModel)) }
-    var previousCursorState = remember { Cursor(textViewModel.cursor) }
+    var previousCursorState by remember { mutableStateOf(Cursor(textViewModel.cursor)) }
     val requester = remember { FocusRequester() }
     val editorTextStyle = remember {
         TextStyle(
@@ -541,6 +708,7 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
     val fontFamilyResolver = LocalFontFamilyResolver.current
     val density = LocalDensity.current.density
 
+    // TODO: rename to editorState
     val canvasState = CanvasState(
         verticalScrollOffset = remember { mutableStateOf(0f) },
         horizontalScrollOffset = remember { mutableStateOf(0f) },
@@ -548,7 +716,15 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
         symbolSize = remember(settings.fontSettings) {
             getSymbolSize(fontFamilyResolver, textMeasurer, settings.fontSettings, density)
         },
-        textViewModel = textViewModel
+        textViewModel = textViewModel,
+
+        // TODO: move into another state object
+        isSearchBarVisible = remember { mutableStateOf(false) },
+        searchState = remember { mutableStateOf(IDLE) },
+        searchedText = remember { mutableStateOf("") },
+        searchResults = remember { mutableStateListOf() },
+        currentSearchResultIndex = remember { mutableStateOf(0) },
+        searchResultLength = remember { mutableStateOf(0) }
     )
 
     val verticalScrollState = canvasState.initializeVerticalScrollbar()
@@ -562,126 +738,169 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
         density,
     )
 
-    Row(Modifier.fillMaxSize()) {
-        /**
-         * Drawing lines panel (panel that contains lines numbers)
-         */
-        Canvas(
-            Modifier
-                // dividing by current density to make the width in dp match the actual width
-                .width((linesPanelSize.width / LocalDensity.current.density).dp)
-                .scrollable(verticalScrollState, Orientation.Vertical)
-                .fillMaxHeight()
-                .clipToBounds()
-                .background(settings.editorSettings.linesPanel.backgroundColor)
-        ) {
-            drawLinesPanel(
-                fontFamilyResolver = fontFamilyResolver,
-                textMeasurer = textMeasurer,
-                scrollOffsetY = -canvasState.verticalScrollOffset.value,
-                canvasState = canvasState,
-                cursor = textViewModel.cursor,
+    val editorInteractionSource = remember { MutableInteractionSource() }
+    val editorFocused by editorInteractionSource.collectIsFocusedAsState()
+
+    val searchTextInFileDebounced = remember {
+        DebounceHandler(500, coroutineScope) { searchText: String ->
+            canvasState.searchTextInFile(searchText)
+            canvasState.scrollToClosestSearchResult()
+        }
+    }
+
+    if (canvasState.isSearchBarVisible.value) {
+        // redraw search results highlighters after text modification
+        LaunchedEffect(canvasState.textViewModel.textModel.textLines()) {
+            canvasState.searchTextInFile(canvasState.searchedText.value)
+        }
+    }
+
+    Column {
+        // search bar
+        if (canvasState.isSearchBarVisible.value) {
+            SearchBar(
                 settings = settings,
-                density = density,
+                onSearchTextChanged =  { text -> searchTextInFileDebounced.run(text) },
+                canvasState = canvasState,
             )
         }
 
-        /**
-         * Drawing canvas with text
-         */
-        Box {
+        // text area
+        Row(Modifier.fillMaxSize()) {
+            /**
+             * Drawing lines panel (panel that contains lines numbers)
+             */
             Canvas(
-                modifier = Modifier
-                    // focusRequester() should be added BEFORE focusable()
-                    .focusRequester(requester)
-                    .focusable()
-                    .handleKeyboardInput(canvasState)
-                    .onSizeChanged { canvasState.canvasSize.value = it }
-                    .pointerInput(requester, canvasState)
+                Modifier
+                    // dividing by current density to make the width in dp match the actual width
+                    .width((linesPanelSize.width / LocalDensity.current.density).dp)
                     .scrollable(verticalScrollState, Orientation.Vertical)
-                    .scrollable(horizontalScrollState, Orientation.Horizontal)
-                    .background(CustomTheme.colors.backgroundDark)
+                    .fillMaxHeight()
                     .clipToBounds()
-                    .fillMaxSize()
+                    .background(settings.editorSettings.linesPanel.backgroundColor)
             ) {
-                textViewModel.let {
-                    val verticalOffset = canvasState.verticalScrollOffset.value
-                    val horizontalOffset = canvasState.horizontalScrollOffset.value
+                drawLinesPanel(
+                    fontFamilyResolver = fontFamilyResolver,
+                    textMeasurer = textMeasurer,
+                    scrollOffsetY = -canvasState.verticalScrollOffset.value,
+                    canvasState = canvasState,
+                    cursor = textViewModel.cursor,
+                    settings = settings,
+                    editorFocused = editorFocused,
+                    density = density,
+                )
+            }
 
-                    // scrolling on cursor getting out of viewport
-                    if (previousCursorState.offset != it.cursor.offset) {
-                        scrollHorizontallyOnCursorOutOfCanvasViewport(
-                            coroutineScope = coroutineScope,
-                            canvasState = canvasState,
-                            horizontalOffset = horizontalOffset,
-                            cursor = it.cursor,
-                            horizontalScrollState = horizontalScrollState,
-                        )
+            /**
+             * Drawing canvas with text
+             */
+            Box {
+                Canvas(
+                    modifier = Modifier
+                        // focusRequester() should be added BEFORE focusable()
+                        .focusRequester(requester)
+                        .focusable(interactionSource = editorInteractionSource)
+                        .handleKeyboardInput(canvasState)
+                        .onSizeChanged { canvasState.canvasSize.value = it }
+                        .pointerInput(requester, canvasState)
+                        .scrollable(verticalScrollState, Orientation.Vertical)
+                        .scrollable(horizontalScrollState, Orientation.Horizontal)
+                        .background(CustomTheme.colors.backgroundDark)
+                        .clipToBounds()
+                        .fillMaxSize()
+                ) {
+                    textViewModel.let {
+                        val verticalOffset = canvasState.verticalScrollOffset.value
+                        val horizontalOffset = canvasState.horizontalScrollOffset.value
 
-                        scrollVerticallyOnCursorOutOfCanvasViewport(
-                            coroutineScope = coroutineScope,
-                            canvasState = canvasState,
-                            verticalOffset = verticalOffset,
-                            cursor = it.cursor,
-                            verticalScrollState = verticalScrollState,
-                        )
+                        // TODO: move into method
+                        // scrolling on cursor getting out of viewport
+                        if (previousCursorState.offset != it.cursor.offset) {
+                            scrollHorizontallyOnCursorOutOfCanvasViewport(
+                                coroutineScope = coroutineScope,
+                                canvasState = canvasState,
+                                horizontalOffset = horizontalOffset,
+                                cursor = it.cursor,
+                                horizontalScrollState = horizontalScrollState,
+                            )
 
-                        previousCursorState = Cursor(it.cursor)
-                    }
+                            scrollVerticallyOnCursorOutOfCanvasViewport(
+                                coroutineScope = coroutineScope,
+                                canvasState = canvasState,
+                                verticalOffset = verticalOffset,
+                                cursor = it.cursor,
+                                verticalScrollState = verticalScrollState,
+                            )
 
-                    val translationX = -horizontalOffset + TEXT_CANVAS_LEFT_MARGIN
-                    val translationY = -verticalOffset
+                            previousCursorState = Cursor(it.cursor)
+                        }
 
-                    // drawing highlighter of cursored line
-                    drawRect(
-                        color = Color.DarkGray,
-                        topLeft = Offset(0f, it.cursor.lineNumber * canvasState.symbolSize.height + translationY),
-                        size = Size(canvasState.canvasSize.value.width.toFloat(), canvasState.symbolSize.height)
-                    )
+                        val translationX = -horizontalOffset + TEXT_CANVAS_LEFT_MARGIN
+                        val translationY = -verticalOffset
 
-                    // drawing text that is visible in the viewport
-                    val (startLineIndex, endLineIndex) = canvasState.viewportLinesRange()
-                    val viewportVisibleText = canvasState.calculateViewportVisibleText()
-
-                    val measuredText = textMeasurer.measure(
-                        text = AnnotatedString(viewportVisibleText),
-                        style = editorTextStyle
-                    )
-                    drawText(
-                        measuredText,
-                        topLeft = Offset(translationX, translationY + startLineIndex * canvasState.symbolSize.height)
-                    )
-
-                    // drawing cursor if it is in the viewport
-                    if (it.cursor.lineNumber in startLineIndex until endLineIndex) {
-                        val cursorOffset =
-                            textViewModel.textModel.totalOffsetOfLine(it.cursor.lineNumber) +
-                                    it.cursor.currentLineOffset - textViewModel.textModel.totalOffsetOfLine(startLineIndex)
-                        /*println("cursorOffset=$cursorOffset, cursorLine=${it.cursor.lineNumber}, " +
-                                "cursorLineOffset=${it.cursor.currentLineOffset}")*/
-
-                        val cursor: Rect = measuredText.getCursorRect(cursorOffset/*it.cursor.offset*/)
+                        // drawing highlighter of cursored line
                         drawRect(
-                            color = Color.White,
-                            topLeft = Offset(
-                                cursor.left + translationX,
-                                cursor.top + translationY + startLineIndex * canvasState.symbolSize.height
-                            ),
-                            size = cursor.size,
-                            style = Stroke(2f)
+                            color = Color.DarkGray,
+                            topLeft = Offset(0f, it.cursor.lineNumber * canvasState.symbolSize.height + translationY),
+                            size = Size(canvasState.canvasSize.value.width.toFloat(), canvasState.symbolSize.height)
                         )
+
+                        // TODO: temporal, move to function
+                        // TODO: highlight all occurrences but mark the selected one with border (use LaunchEffect)
+                        // highlighting searched results
+                        if (canvasState.isSearchBarVisible.value) {
+                            highlightSearchResults(
+                                settings,
+                                canvasState,
+                                Offset(translationX, translationY)
+                            )
+                        }
+
+                        // drawing text that is visible in the viewport
+                        val (startLineIndex, endLineIndex) = canvasState.viewportLinesRange()
+                        val viewportVisibleText = canvasState.calculateViewportVisibleText()
+
+                        val measuredText = textMeasurer.measure(
+                            text = AnnotatedString(viewportVisibleText),
+                            style = editorTextStyle
+                        )
+
+                        drawText(
+                            measuredText,
+                            topLeft = Offset(translationX, translationY + startLineIndex * canvasState.symbolSize.height)
+                        )
+
+                        // drawing cursor if it is in the viewport
+                        if (it.cursor.lineNumber in startLineIndex until endLineIndex) {
+                            val cursorOffset =
+                                textViewModel.textModel.totalOffsetOfLine(it.cursor.lineNumber) +
+                                        it.cursor.currentLineOffset - textViewModel.textModel.totalOffsetOfLine(startLineIndex)
+                            /*println("cursorOffset=$cursorOffset, cursorLine=${it.cursor.lineNumber}, " +
+                                    "cursorLineOffset=${it.cursor.currentLineOffset}")*/
+
+                            val cursor: Rect = measuredText.getCursorRect(cursorOffset/*it.cursor.offset*/)
+                            drawRect(
+                                color = Color.White,
+                                topLeft = Offset(
+                                    cursor.left + translationX,
+                                    cursor.top + translationY + startLineIndex * canvasState.symbolSize.height
+                                ),
+                                size = cursor.size,
+                                style = Stroke(2f)
+                            )
+                        }
                     }
                 }
-            }
 
-            // focus on canvas on every update of opened file
-            LaunchedEffect(activeFileModel) {
-                requester.requestFocus()
-            }
+                // focus on canvas on every update of opened file
+                LaunchedEffect(activeFileModel) {
+                    requester.requestFocus()
+                }
 
-            // scrollbars
-            CanvasVerticalScrollbar(canvasState)
-            CanvasHorizontalScrollbar(canvasState)
+                // scrollbars
+                CanvasVerticalScrollbar(canvasState)
+                CanvasHorizontalScrollbar(canvasState)
+            }
         }
     }
 }

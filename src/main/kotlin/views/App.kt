@@ -18,9 +18,9 @@ import components.vfs.OSVirtualFileSystem
 import viewmodels.FileTreeViewModel
 import viewmodels.ProjectViewModel
 import viewmodels.TabsViewModel
-import views.common.CustomTheme
-import views.common.Fonts
-import views.common.Settings
+import views.design.CustomTheme
+import views.design.Fonts
+import views.design.Settings
 import views.filestree.FileTree
 import views.filestree.FileTreeLabel
 import views.tabs.TabsContainer

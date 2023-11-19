@@ -22,14 +22,11 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import views.common.CustomTheme
-import views.common.Settings
+import views.design.CustomTheme
+import views.design.Settings
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun Tab(
     filename: String,
@@ -38,7 +35,6 @@ fun Tab(
     onTabClick: () -> Unit,
     onCloseButtonClick: () -> Unit
     ) {
-    //val tabFocusManager = LocalFocusManager.current
     val tabFocusRequester = remember { FocusRequester() }
     val tabInteractionSource = remember { MutableInteractionSource() }
     val closeIconFocusRequester = remember { FocusRequester() }

@@ -417,6 +417,14 @@ class LineArrayTextModel : TextModel {
         return offset
     }
 
+    override fun textLines(): List<String> {
+        /**
+         * Calling toList() insures that Composable components will be able to listen updates of the list
+         * using LaunchedEffect()
+         */
+        return textLines.toList()
+    }
+
     override fun maxLineLength(): Int {
         return textLines.maxOfOrNull { s -> s.length } ?: 0
     }

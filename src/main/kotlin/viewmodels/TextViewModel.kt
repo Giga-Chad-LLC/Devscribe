@@ -1,7 +1,5 @@
 package viewmodels
 
-import androidx.compose.ui.input.key.utf16CodePoint
-import common.TextConstants
 import components.DebounceHandler
 import components.dispatcher.KeyboardEventDispatcher
 import components.dispatcher.KeyboardEventDispatcher.KeyboardAction
@@ -16,11 +14,6 @@ class TextViewModel(coroutineScope: CoroutineScope, private var activeFileModel:
     val textModel: TextModel
         get() {
             return activeFileModel.textModel
-        }
-
-    val text: String
-        get() {
-            return activeFileModel.textModel.text
         }
 
     val cursor: Cursor
