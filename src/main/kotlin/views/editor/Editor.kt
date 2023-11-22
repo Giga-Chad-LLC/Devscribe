@@ -25,8 +25,6 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFontFamilyResolver
 import androidx.compose.ui.text.*
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.platform.FontLoadResult
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import common.ceilToInt
@@ -36,10 +34,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import models.PinnedFileModel
 import models.text.Cursor
-import org.jetbrains.skia.Font
 import viewmodels.TextViewModel
 import views.design.CustomTheme
-import views.design.FontSettings
 import views.design.Settings
 import views.editor.SearchState.IDLE
 
@@ -56,11 +52,13 @@ internal data class SearchResult(
     val lineOffset: Int,
 )
 
+
 internal enum class SearchState {
     IDLE,
     RESULTS_FOUND,
     NO_RESULTS_FOUND,
 }
+
 
 @Composable
 private fun BoxScope.CanvasVerticalScrollbar(editorState: EditorState) {
@@ -82,6 +80,7 @@ private fun BoxScope.CanvasVerticalScrollbar(editorState: EditorState) {
     )
 }
 
+
 @Composable
 private fun BoxScope.CanvasHorizontalScrollbar(editorState: EditorState) {
     HorizontalScrollbar(
@@ -101,6 +100,7 @@ private fun BoxScope.CanvasHorizontalScrollbar(editorState: EditorState) {
         Modifier.align(Alignment.BottomCenter)
     )
 }
+
 
 private fun DrawScope.highlightSearchResults(
     settings: Settings,
@@ -158,6 +158,7 @@ private fun scrollOnCursorOutOfCanvasViewport(
     }
 }
 
+
 private fun scrollHorizontallyOnCursorOutOfCanvasViewport(
     coroutineScope: CoroutineScope,
     editorState: EditorState,
@@ -174,6 +175,7 @@ private fun scrollHorizontallyOnCursorOutOfCanvasViewport(
         scrollState = horizontalScrollState
     )
 }
+
 
 private fun scrollVerticallyOnCursorOutOfCanvasViewport(
     coroutineScope: CoroutineScope,
@@ -208,154 +210,6 @@ private fun scrollVerticallyOnCursorOutOfCanvasViewport(
 
 
 /**
- * textMeasurer.measure("x").width (or .multiParagraph.width) is incorrect.
- * But skia multiplied by current density counts the symbol width correctly, but the height calculated by skia is incorrect.
- *
- * Thus, here width is calculated via skia, and height is calculated via TextMeasurer.
- * Recalculation occurs only on font size change, therefore it should not impact performance.
- *
- * @return The width and height of a symbol with respect to its font settings.
- */
-@OptIn(ExperimentalTextApi::class)
-private fun getSymbolSize(
-    fontFamilyResolver: FontFamily.Resolver,
-    textMeasurer: TextMeasurer,
-    fontSettings: FontSettings,
-    density: Float
-): Size {
-    val fontLoadResult = fontFamilyResolver.resolve(fontSettings.fontFamily).value as FontLoadResult
-    val style = TextStyle(
-        fontSize = fontSettings.fontSize,
-        fontFamily = fontSettings.fontFamily
-    )
-
-    val width = Font(fontLoadResult.typeface, fontSettings.fontSize.value).measureTextWidth("a") * density
-    val height = textMeasurer.measure(AnnotatedString("a"), style).size.height
-
-    return Size(width, height.toFloat())
-}
-
-
-@OptIn(ExperimentalTextApi::class)
-private fun determineLinesPanelSize(
-    fontFamilyResolver: FontFamily.Resolver,
-    textMeasurer: TextMeasurer,
-    editorState: EditorState,
-    settings: Settings,
-    density: Float
-): Size {
-    val lineSymbolSize = getSymbolSize(
-        fontFamilyResolver,
-        textMeasurer,
-        settings.editorSettings.linesPanel.fontSettings,
-        density
-    )
-
-    val maxLineNumber = editorState.textViewModel.textModel.linesCount()
-
-    return Size(
-        // left & right paddings + width of the longest line number
-        LINES_PANEL_RIGHT_PADDING + maxLineNumber.toString().length * lineSymbolSize.width + LINES_PANEL_LEFT_PADDING,
-        // canvas width
-        editorState.canvasSize.value.height.toFloat()
-    )
-}
-
-/**
- * Draws panel with line numbers.
- * @return Size of the drawn panel.
- */
-// TODO: move lines panel into separate file
-// TODO: move some extensions into separate file
-@OptIn(ExperimentalTextApi::class)
-private fun DrawScope.drawLinesPanel(
-    fontFamilyResolver: FontFamily.Resolver,
-    textMeasurer: TextMeasurer,
-    scrollOffsetY: Float,
-    editorState: EditorState,
-    cursor: Cursor,
-    settings: Settings,
-    editorFocused: Boolean,
-    density: Float
-) {
-    val linesPanelSettings = settings.editorSettings.linesPanel
-
-    val lineSymbolSize = getSymbolSize(
-        fontFamilyResolver,
-        textMeasurer,
-        linesPanelSettings.fontSettings,
-        density,
-    )
-
-    val (startLineIndex, endLineIndex) = editorState.viewportLinesRange()
-
-    val startLineNumber = startLineIndex + 1
-    val maxLineNumber = endLineIndex
-
-    /**
-     * Starting with centering offsets that place the line number in the center of code symbol.
-     *
-     * Assuming that font size of line number <= font size of code symbol.
-     */
-    val centeringOffsetX = (editorState.symbolSize.width - lineSymbolSize.width) / 2
-    val centeringOffsetY = (editorState.symbolSize.height - lineSymbolSize.height) / 2
-
-    /**
-     * offsetY starts from the offset of scrolled up lines (i.e. first 'startLineIndex' line)
-     */
-    var offsetY = centeringOffsetY + startLineIndex * editorState.symbolSize.height
-
-    val linesPanelSize = determineLinesPanelSize(
-        fontFamilyResolver,
-        textMeasurer,
-        editorState,
-        settings,
-        density,
-    )
-
-    /**
-     * Drawing a split line on the right border of the lines panel
-     */
-    drawRect(
-        color = if (editorFocused) linesPanelSettings.editorFocusedSplitLineColor else linesPanelSettings.splitLineColor,
-        topLeft = Offset(linesPanelSize.width - 1f, 0f),
-        size = Size(1f, linesPanelSize.height)
-    )
-
-    /**
-     * Drawing lines numbers
-     */
-    for (lineNumber in startLineNumber .. maxLineNumber) {
-        // if current line is under cursor lighten it
-        val color = if (cursor.lineNumber + 1 == lineNumber)
-                    linesPanelSettings.cursoredLineFontColor else linesPanelSettings.fontSettings.fontColor
-
-        val measuredText = textMeasurer.measure(
-            AnnotatedString(lineNumber.toString()),
-            style = TextStyle(
-                color = color,
-                fontSize = linesPanelSettings.fontSettings.fontSize,
-                fontWeight = linesPanelSettings.fontSettings.fontWeight,
-                fontFamily = linesPanelSettings.fontSettings.fontFamily,
-            )
-        )
-
-        // the translation makes the line numbers to be aligned by the smallest digit, i.e. digits grow from right to left
-        val translationX = (maxLineNumber.toString().length - lineNumber.toString().length) * lineSymbolSize.width
-        val resultOffsetX = LINES_PANEL_RIGHT_PADDING + translationX + centeringOffsetX /*+ scrollOffset.x*/
-
-        // drawing line number
-        drawText(
-            measuredText,
-            topLeft = Offset(resultOffsetX, offsetY + scrollOffsetY)
-        )
-
-        offsetY += editorState.symbolSize.height
-    }
-}
-
-
-/**
  * Handles mouse click on the canvas by changing cursor position
  */
 private fun Modifier.pointerInput(focusRequester: FocusRequester, editorState: EditorState): Modifier {
@@ -373,6 +227,7 @@ private fun Modifier.pointerInput(focusRequester: FocusRequester, editorState: E
             }
     )
 }
+
 
 /**
  * Handles keyboard inputs by executing commands of TextViewModel
@@ -477,13 +332,14 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
     /**
      * Required to try to update pinned file model on each invocation because
      * 'remember' of textViewModel does not recreate the object thus outdated pinned file model persists on the canvas.
+     *
+     * TODO: maybe not the best solution
      */
     textViewModel.updateActiveFileModel(activeFileModel)
 
     val fontFamilyResolver = LocalFontFamilyResolver.current
     val density = LocalDensity.current.density
 
-    // TODO: rename to editorState
     val editorState = EditorState(
         verticalScrollOffset = remember { mutableStateOf(0f) },
         horizontalScrollOffset = remember { mutableStateOf(0f) },
@@ -505,14 +361,6 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
     val verticalScrollState = editorState.initializeVerticalScrollbar()
     val horizontalScrollState = editorState.initializeHorizontalScrollbar()
 
-    val linesPanelSize = determineLinesPanelSize(
-        fontFamilyResolver,
-        textMeasurer,
-        editorState,
-        settings,
-        density,
-    )
-
     val editorInteractionSource = remember { MutableInteractionSource() }
     val editorFocused by editorInteractionSource.collectIsFocusedAsState()
 
@@ -523,11 +371,17 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
         }
     }
 
+    // TODO: instead of isSearchBarVisible use enum states
     if (editorState.isSearchBarVisible.value) {
         // redraw search results highlighters after text modification
         LaunchedEffect(editorState.textViewModel.textModel.textLines()) {
             editorState.searchTextInFile(editorState.searchedText.value)
         }
+    }
+
+    // focus on canvas on every update of opened file
+    LaunchedEffect(activeFileModel) {
+        requester.requestFocus()
     }
 
     Column {
@@ -545,26 +399,16 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
             /**
              * Drawing lines panel (panel that contains lines numbers)
              */
-            Canvas(
-                Modifier
-                    // dividing by current density to make the width in dp match the actual width
-                    .width((linesPanelSize.width / LocalDensity.current.density).dp)
-                    .scrollable(verticalScrollState, Orientation.Vertical)
-                    .fillMaxHeight()
-                    .clipToBounds()
-                    .background(settings.editorSettings.linesPanel.backgroundColor)
-            ) {
-                drawLinesPanel(
-                    fontFamilyResolver = fontFamilyResolver,
-                    textMeasurer = textMeasurer,
-                    scrollOffsetY = -editorState.verticalScrollOffset.value,
-                    editorState = editorState,
-                    cursor = textViewModel.cursor,
-                    settings = settings,
-                    editorFocused = editorFocused,
-                    density = density,
-                )
-            }
+            LinesPanel(
+                verticalScrollState,
+                settings,
+                fontFamilyResolver,
+                textMeasurer,
+                editorState,
+                textViewModel,
+                density,
+                editorFocused,
+            )
 
             /**
              * Drawing canvas with text
@@ -620,8 +464,6 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
                             size = Size(editorState.canvasSize.value.width.toFloat(), editorState.symbolSize.height)
                         )
 
-                        // TODO: temporal, move to function
-                        // TODO: highlight all occurrences but mark the selected one with border (use LaunchEffect)
                         // highlighting searched results
                         if (editorState.isSearchBarVisible.value) {
                             highlightSearchResults(
@@ -648,8 +490,8 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
                         // drawing cursor if it is in the viewport
                         if (it.cursor.lineNumber in startLineIndex until endLineIndex) {
                             val cursorOffset =
-                                textViewModel.textModel.totalOffsetOfLine(it.cursor.lineNumber) +
-                                        it.cursor.currentLineOffset - textViewModel.textModel.totalOffsetOfLine(startLineIndex)
+                                textViewModel.textModel.totalOffsetOfLine(it.cursor.lineNumber) -
+                                        textViewModel.textModel.totalOffsetOfLine(startLineIndex) + it.cursor.currentLineOffset
                             /*println("cursorOffset=$cursorOffset, cursorLine=${it.cursor.lineNumber}, " +
                                     "cursorLineOffset=${it.cursor.currentLineOffset}")*/
 
@@ -665,11 +507,6 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
                             )
                         }
                     }
-                }
-
-                // focus on canvas on every update of opened file
-                LaunchedEffect(activeFileModel) {
-                    requester.requestFocus()
                 }
 
                 // scrollbars
