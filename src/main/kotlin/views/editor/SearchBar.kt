@@ -19,22 +19,24 @@ import views.common.SearchField
 import views.design.Settings
 
 
-private fun selectSearchResultMessage(canvasState: CanvasState): String {
-    return when (canvasState.searchState.value) {
-        SearchState.IDLE -> "0 results"
-        SearchState.RESULTS_FOUND -> "${canvasState.currentSearchResultIndex.value + 1}/${canvasState.searchResults.size}"
-        SearchState.NO_RESULTS_FOUND -> "No results"
+private fun selectSearchResultMessage(editorState: EditorState): String {
+    val searchState = editorState.searchState
+
+    return when (searchState.searchStatus.value) {
+        SearchStatus.IDLE -> "0 results"
+        SearchStatus.RESULTS_FOUND -> "${searchState.currentSearchResultIndex.value + 1}/${searchState.searchResults.size}"
+        SearchStatus.NO_RESULTS_FOUND -> "No results"
     }
 }
 
 
 @Composable
-fun SearchBar(
+internal fun SearchBar(
     settings: Settings,
     onSearchTextChanged: (String) -> Unit,
-    canvasState: CanvasState,
+    editorState: EditorState,
 ) {
-    val enabled = (canvasState.searchState.value == SearchState.RESULTS_FOUND)
+    val enabled = (editorState.searchState.searchStatus.value == SearchStatus.RESULTS_FOUND)
     val scrollState = rememberScrollState()
 
     Row(
@@ -47,13 +49,13 @@ fun SearchBar(
         SearchField(
             settings,
             onSearchTextChanged = onSearchTextChanged,
-            searchText = canvasState.searchedText,
-            onEnterPressed = { if (enabled) canvasState.scrollToNextSearchResult() },
-            onShiftEnterPressed = { if (enabled) canvasState.scrollToPreviousSearchResult() }
+            searchText = editorState.searchState.searchedText,
+            onEnterPressed = { if (enabled) editorState.scrollToNextSearchResult() },
+            onShiftEnterPressed = { if (enabled) editorState.scrollToPreviousSearchResult() }
         )
 
         Text(
-            text = selectSearchResultMessage(canvasState),
+            text = selectSearchResultMessage(editorState),
             style = TextStyle(
                 fontSize = settings.searchBarFontSettings.fontSize,
                 fontWeight = settings.searchBarFontSettings.fontWeight,
@@ -64,7 +66,7 @@ fun SearchBar(
         )
 
         CustomIconButton(
-            onClick = { canvasState.scrollToPreviousSearchResult() },
+            onClick = { editorState.scrollToPreviousSearchResult() },
             enabled = (enabled /*canvasState.searchResults.size > 0*/),
             imageVector = Icons.Filled.KeyboardArrowUp,
             contentDescription = "Previous search result",
@@ -72,7 +74,7 @@ fun SearchBar(
         )
 
         CustomIconButton(
-            onClick = { canvasState.scrollToNextSearchResult() },
+            onClick = { editorState.scrollToNextSearchResult() },
             enabled = (enabled /*canvasState.searchResults.size > 0*/),
             imageVector = Icons.Filled.KeyboardArrowDown,
             contentDescription = "Next search result",
