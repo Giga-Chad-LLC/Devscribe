@@ -20,10 +20,12 @@ import views.design.Settings
 
 
 private fun selectSearchResultMessage(editorState: EditorState): String {
-    return when (editorState.searchState.value) {
-        SearchState.IDLE -> "0 results"
-        SearchState.RESULTS_FOUND -> "${editorState.currentSearchResultIndex.value + 1}/${editorState.searchResults.size}"
-        SearchState.NO_RESULTS_FOUND -> "No results"
+    val searchState = editorState.searchState
+
+    return when (searchState.searchStatus.value) {
+        SearchStatus.IDLE -> "0 results"
+        SearchStatus.RESULTS_FOUND -> "${searchState.currentSearchResultIndex.value + 1}/${searchState.searchResults.size}"
+        SearchStatus.NO_RESULTS_FOUND -> "No results"
     }
 }
 
@@ -34,7 +36,7 @@ internal fun SearchBar(
     onSearchTextChanged: (String) -> Unit,
     editorState: EditorState,
 ) {
-    val enabled = (editorState.searchState.value == SearchState.RESULTS_FOUND)
+    val enabled = (editorState.searchState.searchStatus.value == SearchStatus.RESULTS_FOUND)
     val scrollState = rememberScrollState()
 
     Row(
@@ -47,7 +49,7 @@ internal fun SearchBar(
         SearchField(
             settings,
             onSearchTextChanged = onSearchTextChanged,
-            searchText = editorState.searchedText,
+            searchText = editorState.searchState.searchedText,
             onEnterPressed = { if (enabled) editorState.scrollToNextSearchResult() },
             onShiftEnterPressed = { if (enabled) editorState.scrollToPreviousSearchResult() }
         )

@@ -7,6 +7,7 @@ import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.v2.ScrollbarAdapter
 import androidx.compose.runtime.*
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
@@ -37,7 +38,6 @@ import models.text.Cursor
 import viewmodels.TextViewModel
 import views.design.CustomTheme
 import views.design.Settings
-import views.editor.SearchState.IDLE
 
 
 internal const val LINES_COUNT_VERTICAL_OFFSET = 5
@@ -46,18 +46,6 @@ internal const val LINES_PANEL_RIGHT_PADDING = 10f
 internal const val LINES_PANEL_LEFT_PADDING = 40f
 internal const val TEXT_CANVAS_LEFT_MARGIN = 8f
 
-
-internal data class SearchResult(
-    val lineIndex: Int,
-    val lineOffset: Int,
-)
-
-
-internal enum class SearchState {
-    IDLE,
-    RESULTS_FOUND,
-    NO_RESULTS_FOUND,
-}
 
 
 @Composable
@@ -107,13 +95,15 @@ private fun DrawScope.highlightSearchResults(
     editorState: EditorState,
     initialOffset: Offset
 ) {
-    for (index in editorState.searchResults.indices) {
-        val searchResult = editorState.searchResults[index]
+    val searchState = editorState.searchState
+
+    for (index in searchState.searchResults.indices) {
+        val searchResult = searchState.searchResults[index]
 
         val offsetX = initialOffset.x + searchResult.lineOffset * editorState.symbolSize.width //translationX
         val offsetY = initialOffset.y + searchResult.lineIndex * editorState.symbolSize.height // translationY
 
-        val highlighterWidth = editorState.searchResultLength.value * editorState.symbolSize.width
+        val highlighterWidth = searchState.searchResultLength.value * editorState.symbolSize.width
         val highlighterHeight = editorState.symbolSize.height
 
         drawRect(
@@ -123,7 +113,7 @@ private fun DrawScope.highlightSearchResults(
         )
 
         // highlighting with stroke currently selected searched result
-        if (editorState.currentSearchResultIndex.value == index) {
+        if (searchState.currentSearchResultIndex.value == index) {
             drawRect(
                 color = settings.editorSettings.highlightingOptions.selectedSearchResultColor,
                 topLeft = Offset(offsetX, offsetY),
@@ -349,13 +339,15 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
         },
         textViewModel = textViewModel,
 
-        // TODO: move into another state object
         isSearchBarVisible = remember { mutableStateOf(false) },
-        searchState = remember { mutableStateOf(IDLE) },
-        searchedText = remember { mutableStateOf("") },
-        searchResults = remember { mutableStateListOf() },
-        currentSearchResultIndex = remember { mutableStateOf(0) },
-        searchResultLength = remember { mutableStateOf(0) }
+        searchState = SearchState(
+            searchStatus = remember { mutableStateOf(SearchStatus.IDLE) },
+            searchedText = remember { mutableStateOf("") },
+            searchResults = remember { mutableStateListOf() },
+            currentSearchResultIndex = remember { mutableStateOf(0) },
+            // length in symbols of a string that is a search result
+            searchResultLength = remember { mutableStateOf(0) },
+        )
     )
 
     val verticalScrollState = editorState.initializeVerticalScrollbar()
@@ -371,11 +363,11 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
         }
     }
 
-    // TODO: instead of isSearchBarVisible use enum states
+    // highlighting search results only when search bar is opened
     if (editorState.isSearchBarVisible.value) {
         // redraw search results highlighters after text modification
         LaunchedEffect(editorState.textViewModel.textModel.textLines()) {
-            editorState.searchTextInFile(editorState.searchedText.value)
+            editorState.searchTextInFile(editorState.searchState.searchedText.value)
         }
     }
 
@@ -432,7 +424,6 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
                         val verticalOffset = editorState.verticalScrollOffset.value
                         val horizontalOffset = editorState.horizontalScrollOffset.value
 
-                        // TODO: move into method
                         // scrolling on cursor getting out of viewport
                         if (previousCursorState.offset != it.cursor.offset) {
                             scrollHorizontallyOnCursorOutOfCanvasViewport(
@@ -464,7 +455,7 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
                             size = Size(editorState.canvasSize.value.width.toFloat(), editorState.symbolSize.height)
                         )
 
-                        // highlighting searched results
+                        // highlighting searched results only if search bar is opened
                         if (editorState.isSearchBarVisible.value) {
                             highlightSearchResults(
                                 settings,
@@ -489,11 +480,8 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
 
                         // drawing cursor if it is in the viewport
                         if (it.cursor.lineNumber in startLineIndex until endLineIndex) {
-                            val cursorOffset =
-                                textViewModel.textModel.totalOffsetOfLine(it.cursor.lineNumber) -
+                            val cursorOffset = textViewModel.textModel.totalOffsetOfLine(it.cursor.lineNumber) -
                                         textViewModel.textModel.totalOffsetOfLine(startLineIndex) + it.cursor.currentLineOffset
-                            /*println("cursorOffset=$cursorOffset, cursorLine=${it.cursor.lineNumber}, " +
-                                    "cursorLineOffset=${it.cursor.currentLineOffset}")*/
 
                             val cursor: Rect = measuredText.getCursorRect(cursorOffset/*it.cursor.offset*/)
                             drawRect(

@@ -22,13 +22,8 @@ internal data class EditorState(
     val symbolSize: Size,
     val textViewModel: TextViewModel,
 
-    // TODO: move search state into different class
     val isSearchBarVisible: MutableState<Boolean>,
-    val searchState: MutableState<SearchState>,
-    val searchedText: MutableState<String>,
-    val searchResults: SnapshotStateList<SearchResult>,
-    var currentSearchResultIndex: MutableState<Int>,
-    var searchResultLength: MutableState<Int>,
+    val searchState: SearchState,
 )
 
 
@@ -99,7 +94,7 @@ internal fun EditorState.searchTextInFile(uneditedSearchText: String) {
     val searchText = uneditedSearchText.replace(' ', TextConstants.nonBreakingSpaceChar)
 
     val lines = textViewModel.textModel.textLines()
-    searchResults.clear()
+    searchState.searchResults.clear()
 
     if (searchText.isNotEmpty()) {
         for (index in lines.indices) {
@@ -108,24 +103,24 @@ internal fun EditorState.searchTextInFile(uneditedSearchText: String) {
             var offset = line.indexOf(searchText, startLineIndex, ignoreCase = true)
 
             while(offset != -1) {
-                searchResults.add(SearchResult(index, offset))
+                searchState.searchResults.add(SearchResult(index, offset))
                 startLineIndex = (offset + searchText.length)
                 offset = line.indexOf(searchText, startLineIndex, ignoreCase = true)
             }
         }
 
-        searchResultLength.value = searchText.length
-        searchedText.value = searchText
+        searchState.searchResultLength.value = searchText.length
+        searchState.searchedText.value = searchText
 
-        if (searchResults.isNotEmpty()) {
-            searchState.value = SearchState.RESULTS_FOUND
+        if (searchState.searchResults.isNotEmpty()) {
+            searchState.searchStatus.value = SearchStatus.RESULTS_FOUND
         }
         else {
-            searchState.value = SearchState.NO_RESULTS_FOUND
+            searchState.searchStatus.value = SearchStatus.NO_RESULTS_FOUND
         }
     }
     else {
-        searchState.value = SearchState.IDLE
+        searchState.searchStatus.value = SearchStatus.IDLE
     }
 }
 
@@ -178,15 +173,15 @@ internal fun EditorState.scrollToClosestSearchResult() {
     var diff = -1
 
     // TODO: make faster: searchResults are sorted by line index, use lower/upper bound (abstract searching algorithm)
-    for (i in searchResults.indices) {
-        if (index == -1 || diff > abs(centerLineIndex - searchResults[i].lineIndex)) {
+    for (i in searchState.searchResults.indices) {
+        if (index == -1 || diff > abs(centerLineIndex - searchState.searchResults[i].lineIndex)) {
             index = i
-            diff = abs(centerLineIndex - searchResults[i].lineIndex)
+            diff = abs(centerLineIndex - searchState.searchResults[i].lineIndex)
         }
     }
 
     if (index != -1) {
-        scrollByKSearchResults(index - currentSearchResultIndex.value)
+        scrollByKSearchResults(index - searchState.currentSearchResultIndex.value)
     }
 }
 
@@ -205,32 +200,34 @@ internal fun EditorState.scrollByKSearchResults(k: Int) {
     val (startLineIndex, endLineIndex) = viewportLinesRange()
     val centerLineIndex = (startLineIndex + endLineIndex) / 2
 
-    val size = searchResults.size
-    assert(size > 0) { "List must be non-empty" }
+    searchState.run {
+        val size = searchResults.size
+        assert(size > 0) { "List must be non-empty" }
 
-    val nextSearchResultIndex = (currentSearchResultIndex.value + k + size) % size
-    val nextSearchResult = searchResults[nextSearchResultIndex]
+        val nextSearchResultIndex = (currentSearchResultIndex.value + k + size) % size
+        val nextSearchResult = searchResults[nextSearchResultIndex]
 
-    val linesDifference = centerLineIndex - nextSearchResult.lineIndex
+        val linesDifference = centerLineIndex - nextSearchResult.lineIndex
 
-    /*println("nextSearchResultIndex=${nextSearchResultIndex} " +
-            "nextSearchResult=${nextSearchResult} " +
-            "lineDiff=${linesDifference}")*/
+        /*println("nextSearchResultIndex=${nextSearchResultIndex} " +
+                "nextSearchResult=${nextSearchResult} " +
+                "lineDiff=${linesDifference}")*/
 
-    currentSearchResultIndex.value = nextSearchResultIndex
-    scrollVerticallyByLines(linesDifference)
+        currentSearchResultIndex.value = nextSearchResultIndex
+        scrollVerticallyByLines(linesDifference)
 
-    // scrolling horizontally to place the result inside viewport
-    val resultStartHorizontalOffset = TEXT_CANVAS_LEFT_MARGIN + nextSearchResult.lineOffset * symbolSize.width
-    val resultEndHorizontalOffset = resultStartHorizontalOffset + searchedText.value.length * symbolSize.width
+        // scrolling horizontally to place the result inside viewport
+        val resultStartHorizontalOffset = TEXT_CANVAS_LEFT_MARGIN + nextSearchResult.lineOffset * symbolSize.width
+        val resultEndHorizontalOffset = resultStartHorizontalOffset + searchedText.value.length * symbolSize.width
 
-    if (resultStartHorizontalOffset < horizontalScrollOffset.value) {
-        val offset = horizontalScrollOffset.value - resultStartHorizontalOffset
-        scrollHorizontallyByOffset(-offset)
-    }
-    else if (resultEndHorizontalOffset > horizontalScrollOffset.value + canvasSize.value.width) {
-        val offset = resultEndHorizontalOffset - (horizontalScrollOffset.value + canvasSize.value.width)
-        scrollHorizontallyByOffset(offset)
+        if (resultStartHorizontalOffset < horizontalScrollOffset.value) {
+            val offset = horizontalScrollOffset.value - resultStartHorizontalOffset
+            scrollHorizontallyByOffset(-offset)
+        }
+        else if (resultEndHorizontalOffset > horizontalScrollOffset.value + canvasSize.value.width) {
+            val offset = resultEndHorizontalOffset - (horizontalScrollOffset.value + canvasSize.value.width)
+            scrollHorizontallyByOffset(offset)
+        }
     }
 }
 
