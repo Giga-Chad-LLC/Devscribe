@@ -29,7 +29,7 @@ private fun selectSearchResultMessage(editorState: EditorState): String {
 
 
 @Composable
-fun SearchBar(
+internal fun SearchBar(
     settings: Settings,
     onSearchTextChanged: (String) -> Unit,
     editorState: EditorState,

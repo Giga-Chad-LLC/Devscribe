@@ -7,7 +7,6 @@ import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.v2.ScrollbarAdapter
 import androidx.compose.runtime.*
-import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
@@ -30,7 +29,6 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.platform.FontLoadResult
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import common.TextConstants
 import common.ceilToInt
 import common.isPrintableSymbolAction
 import components.DebounceHandler
@@ -43,9 +41,7 @@ import viewmodels.TextViewModel
 import views.design.CustomTheme
 import views.design.FontSettings
 import views.design.Settings
-import views.editor.SearchState.*
-import kotlin.math.abs
-import kotlin.math.roundToInt
+import views.editor.SearchState.IDLE
 
 
 internal const val LINES_COUNT_VERTICAL_OFFSET = 5
@@ -55,220 +51,15 @@ internal const val LINES_PANEL_LEFT_PADDING = 40f
 internal const val TEXT_CANVAS_LEFT_MARGIN = 8f
 
 
-data class SearchResult(
+internal data class SearchResult(
     val lineIndex: Int,
     val lineOffset: Int,
 )
 
-enum class SearchState {
+internal enum class SearchState {
     IDLE,
     RESULTS_FOUND,
     NO_RESULTS_FOUND,
-}
-
-data class EditorState(
-    val verticalScrollOffset: MutableState<Float>,
-    val horizontalScrollOffset: MutableState<Float>,
-    val canvasSize: MutableState<IntSize>,
-    val symbolSize: Size,
-    val textViewModel: TextViewModel,
-
-    // TODO: move search state into different class
-    val isSearchBarVisible: MutableState<Boolean>,
-    val searchState: MutableState<SearchState>,
-    val searchedText: MutableState<String>,
-    val searchResults: SnapshotStateList<SearchResult>,
-    var currentSearchResultIndex: MutableState<Int>,
-    var searchResultLength: MutableState<Int>,
-)
-
-private fun EditorState.getMaxVerticalScrollOffset(): Float {
-    /**
-     * N := LINES_COUNT_VERTICAL_OFFSET
-     *
-     * Subtracting N from total lines count to make last N lines visible at the lowest position of vertical scroll
-     */
-    val maxLinesNumber = (textViewModel.textModel.linesCount() - LINES_COUNT_VERTICAL_OFFSET).coerceAtLeast(0)
-    return maxLinesNumber * symbolSize.height
-}
-
-private fun EditorState.getMaxHorizontalScrollOffset(): Float {
-    /**
-     * If max line of a text exceeds the viewport of canvas then set the max horizontal offset to the difference
-     * between the viewport width and line width extended by SYMBOLS_COUNT_HORIZONTAL_OFFSET.
-     * Otherwise, set max offset to 0.
-     */
-    val maxLineOffset = textViewModel.textModel.maxLineLength() * symbolSize.width
-    val canvasWidth = canvasSize.value.width.toFloat()
-
-    var maxHorizontalOffset = (maxLineOffset - canvasWidth).coerceAtLeast(0f)
-    if (maxHorizontalOffset > 0) {
-        maxHorizontalOffset += SYMBOLS_COUNT_HORIZONTAL_OFFSET * symbolSize.width
-    }
-
-    return maxHorizontalOffset
-}
-
-/**
- * Scrolls vertically by the provided lines count.
- *
- * @param[k] number of lines. If positive then scrolls up, if negative scrolls down.
- */
-private fun EditorState.scrollVerticallyByLines(k: Int) {
-    scrollVerticallyByOffset(-1f * k * symbolSize.height)
-}
-
-private fun EditorState.scrollVerticallyByOffset(offset: Float) {
-    verticalScrollOffset.value = coerceVerticalOffset(verticalScrollOffset.value + offset)
-}
-
-private fun EditorState.coerceVerticalOffset(offset: Float): Float {
-    return offset
-        .coerceAtLeast(0f)
-        .coerceAtMost(getMaxVerticalScrollOffset())
-}
-
-private fun EditorState.coerceHorizontalOffset(offset: Float): Float {
-    return offset
-        .coerceAtLeast(0f)
-        .coerceAtMost(getMaxHorizontalScrollOffset())
-}
-
-
-private fun EditorState.scrollHorizontallyByOffset(offset: Float) {
-    horizontalScrollOffset.value = coerceHorizontalOffset(horizontalScrollOffset.value + offset)
-}
-
-private fun EditorState.searchTextInFile(uneditedSearchText: String) {
-    val searchText = uneditedSearchText.replace(' ', TextConstants.nonBreakingSpaceChar)
-
-    val lines = textViewModel.textModel.textLines()
-    searchResults.clear()
-
-    if (searchText.isNotEmpty()) {
-        for (index in lines.indices) {
-            val line = lines[index]
-            var startLineIndex = 0
-            var offset = line.indexOf(searchText, startLineIndex, ignoreCase = true)
-
-            while(offset != -1) {
-                searchResults.add(SearchResult(index, offset))
-                startLineIndex = (offset + searchText.length)
-                offset = line.indexOf(searchText, startLineIndex, ignoreCase = true)
-            }
-        }
-
-        searchResultLength.value = searchText.length
-        searchedText.value = searchText
-
-        if (searchResults.isNotEmpty()) {
-            searchState.value = RESULTS_FOUND
-        }
-        else {
-            searchState.value = NO_RESULTS_FOUND
-        }
-    }
-    else {
-        searchState.value = IDLE
-    }
-}
-
-/**
- * Accepts canvas offset (e.g. offset of mouse click event) and maps it to (lineIndex, lineOffset) pair.
- */
-private fun EditorState.canvasOffsetToCursorPosition(offset: Offset) : Pair<Int, Int> {
-    val lineIndex = ((offset.y + verticalScrollOffset.value) / symbolSize.height)
-        .toInt().coerceAtMost(textViewModel.textModel.linesCount() - 1)
-
-    /*println("symbolWidth=${symbolSize.width}")
-    println("lineOffsetFloat=${(offset.x + horizontalScrollOffset.value - TEXT_CANVAS_LEFT_MARGIN) / symbolSize.width}")*/
-
-    val lineOffset = ((offset.x + horizontalScrollOffset.value - TEXT_CANVAS_LEFT_MARGIN) / symbolSize.width)
-        .roundToInt().coerceAtLeast(0).coerceAtMost(textViewModel.textModel.lineLength(lineIndex))
-
-    return lineIndex to lineOffset
-}
-
-private fun EditorState.viewportLinesRange(): Pair<Int, Int> {
-    val startOffset = Offset(horizontalScrollOffset.value, verticalScrollOffset.value)
-    val endOffset = Offset(
-        horizontalScrollOffset.value + canvasSize.value.width,
-        verticalScrollOffset.value + canvasSize.value.height
-    )
-
-    val startLineIndex = (startOffset.y / symbolSize.height)
-        .toInt().coerceAtMost(textViewModel.textModel.linesCount() - 1)
-
-    val endLineIndex = ((endOffset.y / symbolSize.height).ceilToInt())
-        .coerceAtMost(textViewModel.textModel.linesCount())
-
-    return startLineIndex to endLineIndex
-}
-
-private fun EditorState.calculateViewportVisibleText(): String {
-    val (startLineIndex, endLineIndex) = viewportLinesRange()
-    return textViewModel.textModel.textInLinesRange(startLineIndex, endLineIndex)
-}
-
-private fun EditorState.scrollToClosestSearchResult() {
-    val (startLineIndex, endLineIndex) = viewportLinesRange()
-    val centerLineIndex = (startLineIndex + endLineIndex) / 2
-
-    var index = -1
-    var diff = -1
-
-    // TODO: make faster: searchResults are sorted by line index, use lower/upper bound
-    for (i in searchResults.indices) {
-        if (index == -1 || diff > abs(centerLineIndex - searchResults[i].lineIndex)) {
-            index = i
-            diff = abs(centerLineIndex - searchResults[i].lineIndex)
-        }
-    }
-
-    if (index != -1) {
-        scrollByKSearchResults(index - currentSearchResultIndex.value)
-    }
-}
-
-fun EditorState.scrollToNextSearchResult() {
-    scrollByKSearchResults(1)
-}
-
-fun EditorState.scrollToPreviousSearchResult() {
-    scrollByKSearchResults(-1)
-}
-
-private fun EditorState.scrollByKSearchResults(k: Int) {
-    val (startLineIndex, endLineIndex) = viewportLinesRange()
-    val centerLineIndex = (startLineIndex + endLineIndex) / 2
-
-    val size = searchResults.size
-    assert(size > 0) { "List must be non-empty" }
-
-    val nextSearchResultIndex = (currentSearchResultIndex.value + k + size) % size
-    val nextSearchResult = searchResults[nextSearchResultIndex]
-
-    val linesDifference = centerLineIndex - nextSearchResult.lineIndex
-
-    /*println("nextSearchResultIndex=${nextSearchResultIndex} " +
-            "nextSearchResult=${nextSearchResult} " +
-            "lineDiff=${linesDifference}")*/
-
-    currentSearchResultIndex.value = nextSearchResultIndex
-    scrollVerticallyByLines(linesDifference)
-
-    // scrolling horizontally to place the result inside viewport
-    val resultStartHorizontalOffset = TEXT_CANVAS_LEFT_MARGIN + nextSearchResult.lineOffset * symbolSize.width
-    val resultEndHorizontalOffset = resultStartHorizontalOffset + searchedText.value.length * symbolSize.width
-
-    if (resultStartHorizontalOffset < horizontalScrollOffset.value) {
-        val offset = horizontalScrollOffset.value - resultStartHorizontalOffset
-        scrollHorizontallyByOffset(-offset)
-    }
-    else if (resultEndHorizontalOffset > horizontalScrollOffset.value + canvasSize.value.width) {
-        val offset = resultEndHorizontalOffset - (horizontalScrollOffset.value + canvasSize.value.width)
-        scrollHorizontallyByOffset(offset)
-    }
 }
 
 @Composable
@@ -309,22 +100,6 @@ private fun BoxScope.CanvasHorizontalScrollbar(editorState: EditorState) {
         },
         Modifier.align(Alignment.BottomCenter)
     )
-}
-
-@Composable
-private fun EditorState.initializeVerticalScrollbar() = rememberScrollableState { delta ->
-    val newScrollOffset = coerceVerticalOffset(verticalScrollOffset.value - delta)
-    val scrollConsumed = verticalScrollOffset.value - newScrollOffset
-    verticalScrollOffset.value = newScrollOffset
-    scrollConsumed
-}
-
-@Composable
-private fun EditorState.initializeHorizontalScrollbar() = rememberScrollableState { delta ->
-    val newScrollOffset = coerceHorizontalOffset(horizontalScrollOffset.value - delta)
-    val scrollConsumed = horizontalScrollOffset.value - newScrollOffset
-    horizontalScrollOffset.value = newScrollOffset
-    scrollConsumed
 }
 
 private fun DrawScope.highlightSearchResults(
