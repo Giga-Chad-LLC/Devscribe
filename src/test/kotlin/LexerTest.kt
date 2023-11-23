@@ -1,11 +1,10 @@
 import components.lexer.Lexer
-import components.lexer.Token
 import components.lexer.Token.TokenType
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 
 
-class CodeAnalysisTest {
+class LexerTest {
     private val lexer = Lexer()
 
     @Test
@@ -107,7 +106,8 @@ class CodeAnalysisTest {
             Pair('/', TokenType.DIVIDE),
             Pair('*', TokenType.MULTIPLY),
             Pair('%', TokenType.MODULO),
-            Pair('=', TokenType.EQUALS),
+            Pair('=', TokenType.ASSIGN),
+            Pair('!', TokenType.NOT),
         )
 
         for ((delimiter, type) in testCases) {
@@ -146,7 +146,8 @@ class CodeAnalysisTest {
             Pair('/', TokenType.DIVIDE),
             Pair('*', TokenType.MULTIPLY),
             Pair('%', TokenType.MODULO),
-            Pair('=', TokenType.EQUALS),
+            Pair('=', TokenType.ASSIGN),
+            Pair('!', TokenType.NOT),
         )
 
         val whitespaceBlock = "  \t\r\n \n\t  "
@@ -264,6 +265,23 @@ class CodeAnalysisTest {
     }
 
     @Test
+    fun testFindEqualsOperator() {
+        val eq = "=="
+        val tokens = lexer.tokenize(eq)
+
+        // EQUALS, END
+        assertEquals(2, tokens.size)
+
+        val tok = tokens[0]
+        assertEquals(TokenType.EQUALS, tok.type)
+        assertEquals(eq.length, tok.length)
+        assertEquals(eq, tok.lexeme)
+        assertEquals(0, tok.startPosition.offset)
+        assertEquals(0, tok.startPosition.lineIndex)
+        assertEquals(0, tok.startPosition.lineOffset)
+    }
+
+    @Test
     fun testFindMultiCharLiteral() {
         val testCases: List<Pair<TokenType, String>> = listOf(
             Pair(TokenType.INTEGER_LITERAL, "1234324"),
@@ -332,20 +350,254 @@ class CodeAnalysisTest {
         }
     }
 
+
+    @Test
+    fun testFindKeyword() {
+        val testCases: List<Pair<TokenType, String>> = listOf(
+            Pair(TokenType.VAR, "var"),
+            Pair(TokenType.FUNCTION, "function"),
+            Pair(TokenType.IF, "if"),
+            Pair(TokenType.FOR, "for"),
+            Pair(TokenType.WHILE, "while"),
+        )
+
+        for ((type, keyword) in testCases) {
+            val tokens = lexer.tokenize(keyword)
+
+            // KEYWORD, END
+            assertEquals(2, tokens.size)
+
+            val tok = tokens[0]
+            assertEquals(type, tok.type)
+            assertEquals(keyword.length, tok.length)
+            assertEquals(keyword, tok.lexeme)
+            assertEquals(0, tok.startPosition.offset)
+            assertEquals(0, tok.startPosition.lineIndex)
+            assertEquals(0, tok.startPosition.lineOffset)
+        }
+    }
+
+    @Test
+    fun testFindKeywordWithWhitespaces() {
+        val testCases: List<Pair<TokenType, String>> = listOf(
+            Pair(TokenType.VAR, "var"),
+            Pair(TokenType.FUNCTION, "function"),
+            Pair(TokenType.IF, "if"),
+            Pair(TokenType.FOR, "for"),
+            Pair(TokenType.WHILE, "while"),
+        )
+
+        val whitespaceBlock = "\t\t \n\r\n \r  \n\n \t  "
+
+        for ((type, keyword) in testCases) {
+            val program = whitespaceBlock + keyword + whitespaceBlock
+            val tokens = lexer.tokenize(program)
+
+            // KEYWORD, END
+            assertEquals(2, tokens.size)
+
+            val tok = tokens[0]
+            assertEquals(type, tok.type)
+            assertEquals(keyword.length, tok.length)
+            assertEquals(keyword, tok.lexeme)
+            assertEquals(whitespaceBlock.length, tok.startPosition.offset)
+        }
+    }
+
+    @Test
+    fun testVariableDefinition() {
+        val keyword = "var"
+        val identifier = "my_variable_123"
+        val op = "="
+
+        val valueLiterals: List<Pair<TokenType, String>> = listOf(
+            Pair(TokenType.INTEGER_LITERAL, "123"),
+            Pair(TokenType.FLOAT_LITERAL, "12.213"),
+            Pair(TokenType.STRING_LITERAL, "\"my string value\""),
+            Pair(TokenType.BOOLEAN_TRUE_LITERAL, "true"),
+            Pair(TokenType.BOOLEAN_FALSE_LITERAL, "false"),
+        )
+
+        for ((type, value) in valueLiterals) {
+            val program = "$keyword $identifier$op$value;"
+            val tokens = lexer.tokenize(program)
+
+            // VAR, IDENTIFIER, EQUALS, LITERAL, SEMICOLON, END
+            assertEquals(6, tokens.size)
+
+            // asserting tokens' types
+            assertEquals(TokenType.VAR, tokens[0].type)
+            assertEquals(TokenType.IDENTIFIER, tokens[1].type)
+            assertEquals(TokenType.ASSIGN, tokens[2].type)
+            assertEquals(type, tokens[3].type)
+            assertEquals(TokenType.SEMICOLON, tokens[4].type)
+            assertEquals(TokenType.END, tokens[5].type)
+        }
+    }
+
+    @Test
+    fun testVariableDeclarationAndFurtherAssignment() {
+        val keyword = "var"
+        val identifier = "my_var_123"
+        val values: List<Pair<TokenType, String>> = listOf(
+            Pair(TokenType.INTEGER_LITERAL, "123"),
+            Pair(TokenType.FLOAT_LITERAL, "12.213"),
+            Pair(TokenType.STRING_LITERAL, "\"my string value\""),
+            Pair(TokenType.BOOLEAN_TRUE_LITERAL, "true"),
+            Pair(TokenType.BOOLEAN_FALSE_LITERAL, "false"),
+        )
+
+        for ((type, literal) in values) {
+            val program = "$keyword $identifier;\n\n$identifier=$literal;"
+            val tokens = lexer.tokenize(program)
+
+            // KEYWORD, IDENTIFIER, SEMICOLON, IDENTIFIER, EQUALS, LITERAL SEMICOLON
+            val types = listOf(
+                TokenType.VAR,
+                TokenType.IDENTIFIER,
+                TokenType.SEMICOLON,
+                TokenType.IDENTIFIER,
+                TokenType.ASSIGN,
+                type,
+                TokenType.SEMICOLON,
+            )
+
+            assertEquals(types.size, tokens.size)
+
+            for (i in types.indices) {
+                assertEquals(types[i], tokens[i].type)
+            }
+        }
+    }
+
+    @Test
+    fun testFunctionDefinition() {
+        val keyword = "function"
+        val identifier = "my_function_123"
+        val arg1 = "arg1"
+        val arg2 = "arg2"
+
+        val program = "$keyword $identifier ($arg1, $arg2) {\n}"
+        val tokens = lexer.tokenize(program)
+
+        // KEYWORD, IDENTIFIER, OPEN_PAREN, IDENTIFIER, COMMA, IDENTIFIER, CLOSE_PAREN, OPEN_CURLY, CLOSE_CURLY, END
+        val types = listOf(
+            TokenType.FUNCTION,
+            TokenType.IDENTIFIER,
+            TokenType.OPEN_PAREN,
+            TokenType.IDENTIFIER,
+            TokenType.COMMA,
+            TokenType.IDENTIFIER,
+            TokenType.CLOSE_PAREN,
+            TokenType.OPEN_CURLY,
+            TokenType.CLOSE_CURLY,
+            TokenType.END,
+        )
+
+        assertEquals(types.size, tokens.size)
+
+        for (i in types.indices) {
+            assertEquals(types[i], tokens[i].type)
+        }
+    }
+
+    @Test
+    fun testConditionsWithIfElse() {
+        val program = "if (2+3==4){\n}\n" +
+                      "else if (true) {\n}\n" +
+                      " else {\n}"
+        val tokens = lexer.tokenize(program)
+
+        // IF, OPEN_PAREN, LITERAL, PLUS, LITERAL, EQUALS, LITERAL, CLOSE_PAREN, OPEN_CURLY, CLOSE_CURLY
+        // ELSE, IF, OPEN_PAREN, BOOL, CLOSE_PAREN, OPEN_CURLY, CLOSE_CURLY,
+        // ELSE OPEN_CURLY, CLOSE_CURLY
+
+        val types = listOf(
+            TokenType.IF,
+            TokenType.OPEN_PAREN,
+            TokenType.INTEGER_LITERAL,
+            TokenType.PLUS,
+            TokenType.INTEGER_LITERAL,
+            TokenType.EQUALS,
+            TokenType.INTEGER_LITERAL,
+            TokenType.ELSE,
+            TokenType.IF,
+            TokenType.OPEN_PAREN,
+            TokenType.BOOLEAN_TRUE_LITERAL,
+            TokenType.CLOSE_PAREN,
+            TokenType.OPEN_CURLY,
+            TokenType.CLOSE_CURLY,
+            TokenType.ELSE,
+            TokenType.OPEN_CURLY,
+            TokenType.CLOSE_CURLY,
+        )
+
+        assertEquals(types.size, tokens.size)
+
+        for (i in types.indices) {
+            assertEquals(types[i], tokens[i].type)
+        }
+    }
+
+    @Test
+    fun testForLoopDefinition() {
+        val program = "for(var i = 0; i < N; i = i + 1)\n{\n}\n"
+        val tokens = lexer.tokenize(program)
+
+        // FOR, OPEN_PAREN, VAR, IDENTIFIER, ASSIGN, LITERAL, SEMICOLON,
+        // IDENTIFIER, LESS, IDENTIFIER, SEMICOLON,
+        // IDENTIFIER, ASSIGN, IDENTIFIER, PLUS, LITERAL, CLOSE_PAREN
+        // OPEN_CURLY, CLOSE_CURLY
+        val types = listOf(
+            TokenType.FOR,
+            TokenType.OPEN_PAREN,
+            TokenType.VAR,
+            TokenType.IDENTIFIER,
+            TokenType.ASSIGN,
+            TokenType.INTEGER_LITERAL,
+            TokenType.SEMICOLON,
+            TokenType.IDENTIFIER,
+            TokenType.LESS,
+            TokenType.IDENTIFIER,
+            TokenType.SEMICOLON,
+            TokenType.IDENTIFIER,
+            TokenType.ASSIGN,
+            TokenType.IDENTIFIER,
+            TokenType.PLUS,
+            TokenType.INTEGER_LITERAL,
+            TokenType.CLOSE_PAREN,
+            TokenType.OPEN_CURLY,
+            TokenType.CLOSE_CURLY
+        )
+
+        assertEquals(types.size, tokens.size)
+
+        for (i in types.indices) {
+            assertEquals(types[i], tokens[i].type)
+        }
+    }
+
+    @Test
+    fun whileLoopDefinition() {
+        val program = "  while(i > 10) {\n}\n"
+        val tokens = lexer.tokenize(program)
+
+        // WHILE, OPEN_PAREN, IDENTIFIER, GREATER, INTEGER, CLOSE_PAREN, OPEN_CURLY, CLOSE_CURLY
+        val types = listOf(
+            TokenType.WHILE,
+            TokenType.OPEN_PAREN,
+            TokenType.IDENTIFIER,
+            TokenType.GREATER,
+            TokenType.INTEGER_LITERAL,
+            TokenType.CLOSE_PAREN,
+            TokenType.OPEN_CURLY,
+            TokenType.CLOSE_CURLY,
+        )
+
+        assertEquals(types.size, tokens.size)
+
+        for (i in types.indices) {
+            assertEquals(types[i], tokens[i].type)
+        }
+    }
 }
-/*
-    // Keywords
-    VAR, FUNCTION, IF, FOR, WHILE,
-
-    // Delimiters +
-    SEMICOLON, COMMA, OPEN_CURLY, CLOSE_CURLY, OPEN_PAREN, CLOSE_PAREN,
-
-    // Operators +
-    PLUS, MINUS, DIVIDE, MULTIPLY, MODULO, EQUALS,
-
-    // Literals
-    INTEGER_LITERAL, FLOAT_LITERAL, STRING_LITERAL, BOOLEAN_LITERAL, IDENTIFIER,
-
-    // Auxiliary
-    END, INVALID,
-*/

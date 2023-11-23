@@ -76,7 +76,7 @@ class Lexer {
                 return getSingleCharacterToken(context, Token.TokenType.MODULO)
             }
             else if (ch == '=') {
-                return getSingleCharacterToken(context, Token.TokenType.EQUALS)
+                return getSingleCharacterToken(context, Token.TokenType.ASSIGN)
             }
             // Literals
             else if (ch.isDigit()) {
