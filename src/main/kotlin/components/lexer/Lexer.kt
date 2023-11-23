@@ -10,7 +10,7 @@ class Lexer {
     // TODO: tokenize keywords
     fun tokenize(program: String): ArrayList<Token> {
         val tokens = ArrayList<Token>()
-        val context = Context(program.trim(), 0, Position(0, 0, 0))
+        val context = Context(program, 0, Position(0, 0, 0))
 
         while (context.currentIndex < context.program.length) {
             val token = getNextToken(context)
@@ -31,7 +31,9 @@ class Lexer {
     private fun getNextToken(context: Context): Token {
         skipWhitespaces(context)
 
+
         context.let {
+            // TODO: what if no tokens encountered after whitespace skipping
             if (it.currentIndex >= it.program.length) {
                 throw IllegalArgumentException("Current index ${it.currentIndex} exceeds allowed range of [0, ${it.program.length})")
             }
@@ -128,6 +130,7 @@ class Lexer {
         return result
     }
 
+    // TODO: how to tackle newline char problem? allow/disallow newline in a string literal
     private fun getStringLiteralToken(context: Context): Token {
         context.let {
             val startPosition = context.currentPosition.copy()
@@ -183,7 +186,7 @@ class Lexer {
 
             if (lexemeTrue == "true") {
                 val token = Token(
-                    Token.TokenType.BOOLEAN_LITERAL,
+                    Token.TokenType.BOOLEAN_TRUE_LITERAL,
                     it.currentPosition,
                     length = lexemeTrue.length,
                     lexemeTrue
@@ -197,7 +200,7 @@ class Lexer {
 
             if (lexemeFalse == "false") {
                 val token = Token(
-                    Token.TokenType.BOOLEAN_LITERAL,
+                    Token.TokenType.BOOLEAN_FALSE_LITERAL,
                     it.currentPosition,
                     length = lexemeFalse.length,
                     lexemeFalse,
