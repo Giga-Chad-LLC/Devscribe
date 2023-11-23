@@ -8,7 +8,6 @@ import org.junit.jupiter.api.Test
 class CodeAnalysisTest {
     private val lexer = Lexer()
 
-    // Whitespaces
     @Test
     fun testEmptyInput() {
         val program = ""
@@ -35,7 +34,6 @@ class CodeAnalysisTest {
         assertEquals(lineIndex, token.startPosition.lineIndex)
     }
 
-    // General
     @Test
     fun testSingleCharTokenAtZeroIndexPosition() {
         val program = "+  \t\n  \r\n \t"
@@ -175,7 +173,6 @@ class CodeAnalysisTest {
         }
     }
 
-    // Delimiters
     @Test
     fun testBracketPairsWithWhitespaces() {
         data class Bracket(
@@ -218,111 +215,122 @@ class CodeAnalysisTest {
         }
     }
 
-    // Operators
-
-    // Literals
     @Test
-    fun testFindSingleDigitIntegerLiteral() {
-        val program = "2"
-        val tokens = lexer.tokenize(program)
+    fun testFindSingleCharLiteral() {
+        val testCases: List<Pair<TokenType, Char>> = listOf(
+            Pair(TokenType.INTEGER_LITERAL, '2'),
+            Pair(TokenType.IDENTIFIER, 'a'),
+        )
 
-        // INTEGER_LITERAL, END
-        assertEquals(2, tokens.size)
+        for ((type, literal) in testCases) {
+            val program = literal.toString()
+            val tokens = lexer.tokenize(program)
 
-        val integer = tokens[0]
-        assertEquals(TokenType.INTEGER_LITERAL, integer.type)
-        assertEquals(1, integer.length)
-        assertEquals("2", integer.lexeme)
-        assertEquals(0, integer.startPosition.offset)
-        assertEquals(0, integer.startPosition.lineIndex)
-        assertEquals(0, integer.startPosition.lineOffset)
+            // LITERAL/IDENTIFIER, END
+            assertEquals(2, tokens.size)
+
+            val tok = tokens[0]
+            assertEquals(type, tok.type)
+            assertEquals(1, tok.length)
+            assertEquals(literal.toString(), tok.lexeme)
+            assertEquals(0, tok.startPosition.offset)
+            assertEquals(0, tok.startPosition.lineIndex)
+            assertEquals(0, tok.startPosition.lineOffset)
+        }
     }
 
     @Test
-    fun testFindSingleDigitIntegerLiteralWithWhitespaces() {
+    fun testFindSingleCharLiteralWithWhitespaces() {
+        val testCases: List<Pair<TokenType, Char>> = listOf(
+            Pair(TokenType.INTEGER_LITERAL, '2'),
+            Pair(TokenType.IDENTIFIER, 'a'),
+        )
+
         val whitespaceBlock = "\t\t \n\r\n \r  \n\n \t  "
-        val program = whitespaceBlock + "2" + whitespaceBlock
-        val tokens = lexer.tokenize(program)
 
-        // INTEGER_LITERAL, END
-        assertEquals(2, tokens.size)
+        for ((type, literal) in testCases) {
+            val program = whitespaceBlock + literal.toString() + whitespaceBlock
+            val tokens = lexer.tokenize(program)
 
-        val integer = tokens[0]
-        assertEquals(TokenType.INTEGER_LITERAL, integer.type)
-        assertEquals(1, integer.length)
-        assertEquals("2", integer.lexeme)
-        assertEquals(whitespaceBlock.length, integer.startPosition.offset)
+            // LITERAL/IDENTIFIER, END
+            assertEquals(2, tokens.size)
+
+            val tok = tokens[0]
+            assertEquals(type, tok.type)
+            assertEquals(1, tok.length)
+            assertEquals(literal.toString(), tok.lexeme)
+            assertEquals(whitespaceBlock.length, tok.startPosition.offset)
+        }
     }
 
     @Test
-    fun testFindMultiDigitIntegerLiteral() {
-        val literal = "232423109"
-        val tokens = lexer.tokenize(literal)
+    fun testFindMultiCharLiteral() {
+        val testCases: List<Pair<TokenType, String>> = listOf(
+            Pair(TokenType.INTEGER_LITERAL, "1234324"),
+            Pair(TokenType.FLOAT_LITERAL, "123.3213"),
+            Pair(TokenType.FLOAT_LITERAL, "1.0"),
+            Pair(TokenType.STRING_LITERAL, "\"\""), // empty string literal
+            Pair(TokenType.STRING_LITERAL, "\"non-empty string literal\""),
+            Pair(TokenType.BOOLEAN_TRUE_LITERAL, "true"),
+            Pair(TokenType.BOOLEAN_FALSE_LITERAL, "false"),
+            Pair(TokenType.IDENTIFIER, "variableName"),
+            Pair(TokenType.IDENTIFIER, "variable_name"),
+            Pair(TokenType.IDENTIFIER, "_variable_name_"), // TODO: currently '_' not supported by lexer, need to support
+            Pair(TokenType.IDENTIFIER, "var123"),
+            Pair(TokenType.IDENTIFIER, "x"),
+            Pair(TokenType.IDENTIFIER, "_"),
+        )
 
-        // INTEGER_LITERAL, END
-        assertEquals(2, tokens.size)
+        for ((type, literal) in testCases) {
+            val tokens = lexer.tokenize(literal)
 
-        val integer = tokens[0]
-        assertEquals(TokenType.INTEGER_LITERAL, integer.type)
-        assertEquals(literal.length, integer.length)
-        assertEquals(literal, integer.lexeme)
-        assertEquals(0, integer.startPosition.offset)
-        assertEquals(0, integer.startPosition.lineIndex)
-        assertEquals(0, integer.startPosition.lineOffset)
+            // LITERAL, END
+            assertEquals(2, tokens.size)
+
+            val tok = tokens[0]
+            assertEquals(type, tok.type)
+            assertEquals(literal.length, tok.length)
+            assertEquals(literal, tok.lexeme)
+            assertEquals(0, tok.startPosition.offset)
+            assertEquals(0, tok.startPosition.lineIndex)
+            assertEquals(0, tok.startPosition.lineOffset)
+        }
     }
 
     @Test
-    fun testFindMultiDigitIntegerLiteralWithWhitespaces() {
+    fun testFindMultiCharLiteralWithWhitespaces() {
+        val testCases: List<Pair<TokenType, String>> = listOf(
+            Pair(TokenType.INTEGER_LITERAL, "1234324"),
+            Pair(TokenType.FLOAT_LITERAL, "123.3213"),
+            Pair(TokenType.FLOAT_LITERAL, "1.0"),
+            Pair(TokenType.STRING_LITERAL, "\"\""), // empty string literal
+            Pair(TokenType.STRING_LITERAL, "\"non-empty string literal\""),
+            Pair(TokenType.BOOLEAN_TRUE_LITERAL, "true"),
+            Pair(TokenType.BOOLEAN_FALSE_LITERAL, "false"),
+            Pair(TokenType.IDENTIFIER, "variableName"),
+            Pair(TokenType.IDENTIFIER, "variable_name"),
+            Pair(TokenType.IDENTIFIER, "_variable_name_"),
+            Pair(TokenType.IDENTIFIER, "var123"),
+            Pair(TokenType.IDENTIFIER, "x"),
+            Pair(TokenType.IDENTIFIER, "_"),
+        )
+
         val whitespaceBlock = "\t\t \n\r\n \r  \n\n \t  "
-        val literal = "232423109"
-        val program = whitespaceBlock + literal + whitespaceBlock
-        val tokens = lexer.tokenize(program)
 
-        // INTEGER_LITERAL, END
-        assertEquals(2, tokens.size)
+        for ((type, literal) in testCases) {
+            val program = whitespaceBlock + literal + whitespaceBlock
+            val tokens = lexer.tokenize(program)
 
-        val integer = tokens[0]
-        assertEquals(TokenType.INTEGER_LITERAL, integer.type)
-        assertEquals(literal.length, integer.length)
-        assertEquals(literal, integer.lexeme)
-        assertEquals(whitespaceBlock.length, integer.startPosition.offset)
+            // LITERAL, END
+            assertEquals(2, tokens.size)
+
+            val tok = tokens[0]
+            assertEquals(type, tok.type)
+            assertEquals(literal.length, tok.length)
+            assertEquals(literal, tok.lexeme)
+            assertEquals(whitespaceBlock.length, tok.startPosition.offset)
+        }
     }
-
-    @Test
-    fun testFindFloatLiteral() {
-        val literal = "12.230"
-        val tokens = lexer.tokenize(literal)
-
-        // FLOAT_LITERAL, END
-        assertEquals(2, tokens.size)
-
-        val integer = tokens[0]
-        assertEquals(TokenType.FLOAT_LITERAL, integer.type)
-        assertEquals(literal.length, integer.length)
-        assertEquals(literal, integer.lexeme)
-        assertEquals(0, integer.startPosition.offset)
-        assertEquals(0, integer.startPosition.lineIndex)
-        assertEquals(0, integer.startPosition.lineOffset)
-    }
-
-    /*@Test
-    fun testFindFloatLiteralWithWhitespace() {
-        val literal = "12.230"
-        val tokens = lexer.tokenize(literal)
-
-        // FLOAT_LITERAL, END
-        assertEquals(2, tokens.size)
-
-        val integer = tokens[0]
-        assertEquals(TokenType.FLOAT_LITERAL, integer.type)
-        assertEquals(literal.length, integer.length)
-        assertEquals(literal, integer.lexeme)
-        assertEquals(0, integer.startPosition.offset)
-        assertEquals(0, integer.startPosition.lineIndex)
-        assertEquals(0, integer.startPosition.lineOffset)
-    }*/
-
-    // Keywords
 
 }
 /*
