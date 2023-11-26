@@ -205,7 +205,7 @@ class Lexer {
     }
 
 
-    // TODO: how to tackle newline char problem? allow/disallow newline in a string literal
+    // TODO: how to treat newline character: allow/disallow newline in a string literal?
     private fun getStringLiteralToken(context: Context): Token {
         context.let {
             val startPosition = context.currentPosition.copy()
