@@ -8,6 +8,9 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.unit.IntSize
 import common.TextConstants
 import common.ceilToInt
+import components.lexer.Lexer
+import components.lexer.Token
+import models.highlighters.*
 import viewmodels.TextViewModel
 import kotlin.math.abs
 import kotlin.math.roundToInt

@@ -30,9 +30,12 @@ import androidx.compose.ui.unit.dp
 import common.ceilToInt
 import common.isPrintableSymbolAction
 import components.DebounceHandler
+import components.lexer.Lexer
+import components.lexer.Token
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import models.PinnedFileModel
+import models.highlighters.*
 import models.text.Cursor
 import viewmodels.TextViewModel
 import views.design.CustomTheme
@@ -302,6 +305,44 @@ private fun Modifier.handleKeyboardInput(editorState: EditorState): Modifier {
 }
 
 
+private fun createHighlighters(text: String): List<AbstractHighlighter> {
+    val lexer = Lexer()
+    val tokens = lexer.tokenize(text)
+
+    val highlighters = mutableListOf<AbstractHighlighter>()
+
+    for (token in tokens) {
+        val begin = token.startPosition.offset
+        val end = begin + token.length
+
+        val highlighter: AbstractHighlighter? = when(token.type) {
+            Token.TokenType.VAR,
+            Token.TokenType.FUNCTION,
+            Token.TokenType.IF,
+            Token.TokenType.ELSE,
+            Token.TokenType.FOR,
+            Token.TokenType.WHILE -> KeywordHighlighter(begin, end)
+            Token.TokenType.NOT,
+            Token.TokenType.COMMA -> AuxiliaryHighlighter(begin, end)
+            Token.TokenType.INTEGER_LITERAL,
+            Token.TokenType.FLOAT_LITERAL -> NumericLiteralHighlighter(begin, end)
+            Token.TokenType.STRING_LITERAL -> StringLiteralHighlighter(begin, end)
+            Token.TokenType.BOOLEAN_TRUE_LITERAL,
+            Token.TokenType.BOOLEAN_FALSE_LITERAL -> BooleanLiteralHighlighter(begin, end)
+            Token.TokenType.INVALID -> InvalidSequenceHighlighter(begin, end)
+            // Token.TokenType.IDENTIFIER -> ?
+            else -> null
+        }
+
+        if (highlighter != null) {
+            highlighters.add(highlighter)
+        }
+    }
+
+    return highlighters
+}
+
+
 @OptIn(ExperimentalTextApi::class)
 @Composable
 fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
@@ -337,7 +378,6 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
             getSymbolSize(fontFamilyResolver, textMeasurer, settings.fontSettings, density)
         },
         textViewModel = textViewModel,
-
         isSearchBarVisible = remember { mutableStateOf(false) },
         searchState = SearchState(
             searchStatus = remember { mutableStateOf(SearchStatus.IDLE) },
@@ -467,8 +507,35 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
                         val (startLineIndex, endLineIndex) = editorState.viewportLinesRange()
                         val viewportVisibleText = editorState.calculateViewportVisibleText()
 
+                        // TODO: temporal for testing
+                        val textStyles = createHighlighters(viewportVisibleText)
+                            .map { highlighter -> AnnotatedString.Range(
+                                highlighter.style, highlighter.begin, highlighter.end) }
+
+                        /*val textStyles = editorState.codeHighlighters
+                            .filter { highlighter ->
+                                it.textModel.totalOffsetOfLine(startLineIndex) <= highlighter.begin &&
+                                        highlighter.end <=
+                                        it.textModel.totalOffsetOfLine(endLineIndex - 1) + it.textModel.lineLength(endLineIndex - 1)
+                            }
+                            .map { highlighter ->
+                                val offset = it.textModel.totalOffsetOfLine(startLineIndex)
+                                AnnotatedString.Range(
+                                    highlighter.style,
+                                    highlighter.begin - offset,
+                                    highlighter.end - offset,
+                                )
+                            }*/
+
+                        /*println("begin=${it.textModel.totalOffsetOfLine(startLineIndex)}, " +
+                                "end=${it.textModel.totalOffsetOfLine(endLineIndex - 1) + it.textModel.lineLength(endLineIndex - 1)}")
+                        println(editorState.codeHighlighters.filter { highlighter ->
+                            it.textModel.totalOffsetOfLine(startLineIndex) <= highlighter.begin &&
+                                    highlighter.end < it.textModel.totalOffsetOfLine(endLineIndex)
+                        })*/
+
                         val measuredText = textMeasurer.measure(
-                            text = AnnotatedString(viewportVisibleText),
+                            text = AnnotatedString(viewportVisibleText, textStyles),
                             style = editorTextStyle
                         )
 
