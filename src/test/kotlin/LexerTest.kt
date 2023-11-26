@@ -4,8 +4,24 @@ import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 
 
+
 class LexerTest {
     private val lexer = Lexer()
+
+    private fun String.countNewlines(): Int {
+        val str = this
+        val sep = System.lineSeparator()
+
+        var count = 0
+        var index = str.indexOf(sep)
+
+        while(index != -1) {
+            ++count
+            index = str.indexOf(sep, index + sep.length)
+        }
+
+        return count
+    }
 
     @Test
     fun testEmptyInput() {
@@ -22,7 +38,7 @@ class LexerTest {
     @Test
     fun testEmptyInputWithWhitespaces() {
         val program = "   \n\n" + System.lineSeparator() + "\t  \t\n  \n\r\n"
-        val lineIndex = program.count { ch -> ch == '\n' }
+        val lineIndex = program.countNewlines()
         val tokens = lexer.tokenize(program)
 
         assertEquals(1, tokens.size)
@@ -31,6 +47,7 @@ class LexerTest {
         assertEquals(TokenType.END, token.type)
         assertEquals(program.length, token.startPosition.offset)
         assertEquals(lineIndex, token.startPosition.lineIndex)
+        assertEquals(0, token.startPosition.lineOffset /* because the program input ends by line separator */)
     }
 
     @Test
@@ -55,7 +72,7 @@ class LexerTest {
         assertEquals(TokenType.END, end.type)
         assertEquals(program.length, end.startPosition.offset)
 
-        val correctLineIndex = program.count { ch -> ch == '\n' }
+        val correctLineIndex = program.countNewlines()
         val lastLineLength = program.length - program.lastIndexOf('\n')
 
         assertEquals(correctLineIndex, end.startPosition.lineIndex)
@@ -72,7 +89,7 @@ class LexerTest {
         val plus = tokens[0]
         val end = tokens[1]
 
-        val correctLineIndex = program.count { ch -> ch == '\n' }
+        val correctLineIndex = program.countNewlines()
         val lastLineLength = program.length - program.lastIndexOf('\n')
 
         // plus
@@ -293,7 +310,7 @@ class LexerTest {
             Pair(TokenType.BOOLEAN_FALSE_LITERAL, "false"),
             Pair(TokenType.IDENTIFIER, "variableName"),
             Pair(TokenType.IDENTIFIER, "variable_name"),
-            Pair(TokenType.IDENTIFIER, "_variable_name_"), // TODO: currently '_' not supported by lexer, need to support
+            Pair(TokenType.IDENTIFIER, "_variable_name_"),
             Pair(TokenType.IDENTIFIER, "var123"),
             Pair(TokenType.IDENTIFIER, "x"),
             Pair(TokenType.IDENTIFIER, "_"),
