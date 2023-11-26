@@ -19,7 +19,7 @@ class Token(
         VAR /* var */, FUNCTION /* function */, IF /* if */, ELSE /* else */, FOR /* for */, WHILE /* while */,
 
         // Delimiters
-        SEMICOLON, COMMA, OPEN_CURLY, CLOSE_CURLY, OPEN_PAREN, CLOSE_PAREN,
+        SEMICOLON, COMMA, DOT, OPEN_CURLY, CLOSE_CURLY, OPEN_PAREN, CLOSE_PAREN, OPEN_SQUARE_BRACKET, CLOSE_SQUARE_BRACKET,
 
         // Operators
         PLUS, MINUS, DIVIDE, MULTIPLY, MODULO, ASSIGN /* = */, LESS /* < */, GREATER /* > */, NOT /* ! */, EQUALS /* == */,

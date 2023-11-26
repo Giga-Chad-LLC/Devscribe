@@ -63,6 +63,15 @@ class Lexer {
             else if (ch == ')') {
                 return getSingleCharacterToken(context, Token.TokenType.CLOSE_PAREN)
             }
+            else if (ch == '[') {
+                return getSingleCharacterToken(context, Token.TokenType.OPEN_SQUARE_BRACKET)
+            }
+            else if (ch == ']') {
+                return getSingleCharacterToken(context, Token.TokenType.CLOSE_SQUARE_BRACKET)
+            }
+            else if (ch == '.') {
+                return getSingleCharacterToken(context, Token.TokenType.DOT)
+            }
             // Operators
             else if (ch == '+') {
                 return getSingleCharacterToken(context, Token.TokenType.PLUS)
@@ -194,30 +203,29 @@ class Lexer {
     private fun getStringLiteralToken(context: Context): Token {
         context.let {
             val startPosition = context.currentPosition.copy()
+            var lexeme = ""
             var length = 0
-            val lexeme: MutableList<Char> = mutableListOf()
 
             var quotesCount = 0
             var ch = it.program[it.currentIndex]
             while(it.currentIndex < it.program.length && quotesCount < 2) {
-                ++length
-                lexeme.add(ch)
-
+                lexeme += ch
                 if (ch == '"') {
                     ++quotesCount
                 }
-
-                advance(it)
+                length += advance(it)
                 if (it.currentIndex < it.program.length) {
                     ch = it.program[it.currentIndex]
                 }
             }
 
+
+
             return Token(
                 type = if (quotesCount == 2) Token.TokenType.STRING_LITERAL else Token.TokenType.INVALID,
                 startPosition = startPosition,
                 length = length,
-                lexeme = lexeme.joinToString("")
+                lexeme = lexeme,
             )
         }
     }
@@ -287,7 +295,13 @@ class Lexer {
     }
 
     // TODO: make offset incrementation inside if/else branches?
-    private fun advance(context: Context) {
+    /**
+     * Advances current index of a program to the next symbol.
+     * Line separator is skipped via advancing the index by the length of the line separator.
+     *
+     * @return The number of characters that were skipped (either 1 or 2 depending on the length of line separator).
+     */
+    private fun advance(context: Context): Int {
         val substring = context.program.substring(
             context.currentIndex, (context.currentIndex + 2).coerceAtMost(context.program.length))
 
@@ -306,6 +320,7 @@ class Lexer {
         else {
             context.currentPosition.lineOffset++
         }
+        return len
     }
 
     private fun skipWhitespaces(context: Context) {
