@@ -120,8 +120,8 @@ class LexerTest {
             Pair(',', TokenType.COMMA),
             Pair('{', TokenType.OPEN_CURLY),
             Pair('}', TokenType.CLOSE_CURLY),
-            Pair('[', TokenType.OPEN_PAREN),
-            Pair(']', TokenType.CLOSE_PAREN),
+            Pair('(', TokenType.OPEN_PAREN),
+            Pair(')', TokenType.CLOSE_PAREN),
             Pair('+', TokenType.PLUS),
             Pair('-', TokenType.MINUS),
             Pair('/', TokenType.DIVIDE),
@@ -132,7 +132,7 @@ class LexerTest {
         )
 
         for ((delimiter, type) in testCases) {
-            val program = delimiter.toString() + delimiter.toString()
+            val program = "$delimiter $delimiter"
             val tokens = lexer.tokenize(program)
 
             // DELIMITER, DELIMITER, END
@@ -144,12 +144,12 @@ class LexerTest {
             assertTrue(tokens[0].startPosition.lineOffset == tokens[0].startPosition.offset)
 
             assertEquals(type, tokens[1].type)
-            assertEquals(1, tokens[1].startPosition.offset)
+            assertEquals(2, tokens[1].startPosition.offset)
             assertTrue(tokens[1].length == tokens[1].lexeme.length)
             assertTrue(tokens[1].startPosition.lineOffset == tokens[1].startPosition.offset)
 
             assertEquals(TokenType.END, tokens[2].type)
-            assertEquals(2, tokens[2].startPosition.offset)
+            assertEquals(3, tokens[2].startPosition.offset)
         }
     }
 
@@ -160,8 +160,8 @@ class LexerTest {
             Pair(',', TokenType.COMMA),
             Pair('{', TokenType.OPEN_CURLY),
             Pair('}', TokenType.CLOSE_CURLY),
-            Pair('[', TokenType.OPEN_PAREN),
-            Pair(']', TokenType.CLOSE_PAREN),
+            Pair('(', TokenType.OPEN_PAREN),
+            Pair(')', TokenType.CLOSE_PAREN),
             Pair('+', TokenType.PLUS),
             Pair('-', TokenType.MINUS),
             Pair('/', TokenType.DIVIDE),
@@ -208,8 +208,8 @@ class LexerTest {
                 Bracket('}', TokenType.CLOSE_CURLY),
             ),
             Pair(
-                Bracket('[', TokenType.OPEN_PAREN),
-                Bracket(']', TokenType.CLOSE_PAREN),
+                Bracket('(', TokenType.OPEN_PAREN),
+                Bracket(')', TokenType.CLOSE_PAREN),
             )
         )
 
@@ -472,7 +472,7 @@ class LexerTest {
             val program = "$keyword $identifier;\n\n$identifier=$literal;"
             val tokens = lexer.tokenize(program)
 
-            // KEYWORD, IDENTIFIER, SEMICOLON, IDENTIFIER, EQUALS, LITERAL SEMICOLON
+            // KEYWORD, IDENTIFIER, SEMICOLON, IDENTIFIER, ASSIGN, LITERAL, SEMICOLON, END
             val types = listOf(
                 TokenType.VAR,
                 TokenType.IDENTIFIER,
@@ -481,6 +481,7 @@ class LexerTest {
                 TokenType.ASSIGN,
                 type,
                 TokenType.SEMICOLON,
+                TokenType.END,
             )
 
             assertEquals(types.size, tokens.size)
@@ -529,10 +530,6 @@ class LexerTest {
                       " else {\n}"
         val tokens = lexer.tokenize(program)
 
-        // IF, OPEN_PAREN, LITERAL, PLUS, LITERAL, EQUALS, LITERAL, CLOSE_PAREN, OPEN_CURLY, CLOSE_CURLY
-        // ELSE, IF, OPEN_PAREN, BOOL, CLOSE_PAREN, OPEN_CURLY, CLOSE_CURLY,
-        // ELSE OPEN_CURLY, CLOSE_CURLY
-
         val types = listOf(
             TokenType.IF,
             TokenType.OPEN_PAREN,
@@ -541,6 +538,9 @@ class LexerTest {
             TokenType.INTEGER_LITERAL,
             TokenType.EQUALS,
             TokenType.INTEGER_LITERAL,
+            TokenType.CLOSE_PAREN,
+            TokenType.OPEN_CURLY,
+            TokenType.CLOSE_CURLY,
             TokenType.ELSE,
             TokenType.IF,
             TokenType.OPEN_PAREN,
@@ -551,6 +551,7 @@ class LexerTest {
             TokenType.ELSE,
             TokenType.OPEN_CURLY,
             TokenType.CLOSE_CURLY,
+            TokenType.END,
         )
 
         assertEquals(types.size, tokens.size)
@@ -565,10 +566,6 @@ class LexerTest {
         val program = "for(var i = 0; i < N; i = i + 1)\n{\n}\n"
         val tokens = lexer.tokenize(program)
 
-        // FOR, OPEN_PAREN, VAR, IDENTIFIER, ASSIGN, LITERAL, SEMICOLON,
-        // IDENTIFIER, LESS, IDENTIFIER, SEMICOLON,
-        // IDENTIFIER, ASSIGN, IDENTIFIER, PLUS, LITERAL, CLOSE_PAREN
-        // OPEN_CURLY, CLOSE_CURLY
         val types = listOf(
             TokenType.FOR,
             TokenType.OPEN_PAREN,
@@ -588,7 +585,8 @@ class LexerTest {
             TokenType.INTEGER_LITERAL,
             TokenType.CLOSE_PAREN,
             TokenType.OPEN_CURLY,
-            TokenType.CLOSE_CURLY
+            TokenType.CLOSE_CURLY,
+            TokenType.END,
         )
 
         assertEquals(types.size, tokens.size)
@@ -603,7 +601,6 @@ class LexerTest {
         val program = "  while(i > 10) {\n}\n"
         val tokens = lexer.tokenize(program)
 
-        // WHILE, OPEN_PAREN, IDENTIFIER, GREATER, INTEGER, CLOSE_PAREN, OPEN_CURLY, CLOSE_CURLY
         val types = listOf(
             TokenType.WHILE,
             TokenType.OPEN_PAREN,
@@ -613,6 +610,7 @@ class LexerTest {
             TokenType.CLOSE_PAREN,
             TokenType.OPEN_CURLY,
             TokenType.CLOSE_CURLY,
+            TokenType.END,
         )
 
         assertEquals(types.size, tokens.size)

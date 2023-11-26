@@ -13,7 +13,6 @@ class Lexer {
         var currentPosition: Position
     )
 
-    // TODO: tokenize keywords
     fun tokenize(program: String): ArrayList<Token> {
         val tokens = ArrayList<Token>()
         val context = Context(program, 0, Position(0, 0, 0))
@@ -58,10 +57,10 @@ class Lexer {
             else if (ch == '}') {
                 return getSingleCharacterToken(context, Token.TokenType.CLOSE_CURLY)
             }
-            else if (ch == '[') {
+            else if (ch == '(') {
                 return getSingleCharacterToken(context, Token.TokenType.OPEN_PAREN)
             }
-            else if (ch == ']') {
+            else if (ch == ')') {
                 return getSingleCharacterToken(context, Token.TokenType.CLOSE_PAREN)
             }
             // Operators
@@ -155,10 +154,6 @@ class Lexer {
     }
 
 
-    private fun getSingleCharacterToken(context: Context, type: Token.TokenType): Token {
-        return getMultiCharacterToken(context, 1, type)
-    }
-
     private fun isKeyword(identifier: String): Boolean {
         val keywords = listOf("var", "function", "if", "else", "for", "while")
 
@@ -168,6 +163,11 @@ class Lexer {
             }
         }
         return false
+    }
+
+
+    private fun getSingleCharacterToken(context: Context, type: Token.TokenType): Token {
+        return getMultiCharacterToken(context, 1, type)
     }
 
 
@@ -273,25 +273,17 @@ class Lexer {
     }
 
 
-    // TODO: use getIdentifierLexeme as delegate
     private fun getIdentifierToken(context: Context): Token {
         val startPosition = context.currentPosition.copy()
-        var length = 0
-        val lexeme: MutableList<Char> = mutableListOf()
+        val lexeme = getIdentifierLexeme(context)
 
         context.let {
-            var ch = it.program[it.currentIndex]
-            while(it.currentIndex < it.program.length && ch.isIdentifierCharacter()) {
-                ++length
-                lexeme.add(ch)
-
+            for (i in lexeme.indices) {
                 advance(it)
-                if (it.currentIndex < it.program.length) {
-                    ch = it.program[it.currentIndex]
-                }
             }
         }
-        return Token(Token.TokenType.IDENTIFIER, startPosition, length, lexeme.joinToString(""))
+
+        return Token(Token.TokenType.IDENTIFIER, startPosition, lexeme.length, lexeme)
     }
 
     // TODO: make offset incrementation inside if/else branches?
