@@ -20,12 +20,14 @@ class Lexer {
 
         while (context.currentIndex < context.program.length) {
             val token = getNextToken(context)
-            tokens.add(token)
+            if (token != null) {
+                tokens.add(token)
+            }
         }
 
         val end = Token(
             type = Token.TokenType.END,
-            startPosition = context.currentPosition,
+            startPosition = context.currentPosition.copy(),
             length = 0,
             lexeme = "",
         )
@@ -95,7 +97,6 @@ class Lexer {
             }
             // Literals
             else if (ch.isDigit()) /* numeric */ {
-                // numeric literal must be BEFORE identifier
                 return getNumericLiteralToken(context)
             }
             else if (ch == '"') /* string */ {
@@ -152,6 +153,21 @@ class Lexer {
         return result
     }
 
+
+    private fun getSingleCharacterToken(context: Context, type: Token.TokenType): Token {
+        return getMultiCharacterToken(context, 1, type)
+        /*val token = Token(
+            type = type,
+            startPosition = context.currentPosition.copy(),
+            length = 1,
+            lexeme = context.program[context.currentIndex].toString()
+        )
+        advance(context)
+
+        return token*/
+    }
+
+
     private fun getMultiCharacterToken(context: Context, len: Int, type: Token.TokenType): Token {
         val lexeme = getValueOfLength(context, len)
         require(lexeme != null && lexeme.length == len)
@@ -170,36 +186,6 @@ class Lexer {
         return token
     }
 
-    private fun getSingleCharacterToken(context: Context, type: Token.TokenType): Token {
-        val token = Token(
-            type = type,
-            startPosition = context.currentPosition.copy(),
-            length = 1,
-            lexeme = context.program[context.currentIndex].toString()
-        )
-        advance(context)
-
-        return token
-    }
-
-
-    private fun isBooleanLiteral(context: Context): Boolean {
-        var result = false
-        context.let {
-            val maxLen = it.program.length
-
-            val lexemeTrue = it.program.substring(
-                it.currentIndex, (it.currentIndex + "true".length).coerceAtMost(maxLen))
-
-            val lexemeFalse = it.program.substring(
-                it.currentIndex, (it.currentIndex + "false".length).coerceAtMost(maxLen))
-
-            if (lexemeTrue == "true" || lexemeFalse == "false") {
-                result = true
-            }
-        }
-        return result
-    }
 
     // TODO: how to tackle newline char problem? allow/disallow newline in a string literal
     private fun getStringLiteralToken(context: Context): Token {
@@ -224,66 +210,12 @@ class Lexer {
                 }
             }
 
-            if (quotesCount == 2) {
-                return Token(
-                    Token.TokenType.STRING_LITERAL,
-                    startPosition,
-                    length,
-                    lexeme.joinToString()
-                )
-            }
-            else {
-                return Token(
-                    Token.TokenType.INVALID,
-                    startPosition,
-                    length,
-                    lexeme.joinToString()
-                )
-            }
-
-        }
-    }
-
-
-    private fun getBooleanLiteral(context: Context): Token {
-        context.let {
-            val maxLen = it.program.length
-
-            val lexemeTrue = it.program.substring(
-                it.currentIndex, (it.currentIndex + "true".length).coerceAtMost(maxLen))
-
-            val lexemeFalse = it.program.substring(
-                it.currentIndex, (it.currentIndex + "false".length).coerceAtMost(maxLen))
-
-            if (lexemeTrue == "true") {
-                val token = Token(
-                    Token.TokenType.BOOLEAN_TRUE_LITERAL,
-                    it.currentPosition,
-                    length = lexemeTrue.length,
-                    lexemeTrue
-                )
-                // advancing current index of the current token in the program
-                for (i in 1..lexemeTrue.length) {
-                    advance(context)
-                }
-                return token
-            }
-
-            if (lexemeFalse == "false") {
-                val token = Token(
-                    Token.TokenType.BOOLEAN_FALSE_LITERAL,
-                    it.currentPosition,
-                    length = lexemeFalse.length,
-                    lexemeFalse,
-                )
-                // advancing current index of the current token in the program
-                for (i in 1..lexemeFalse.length) {
-                    advance(context)
-                }
-                return token
-            }
-
-            throw IllegalArgumentException("No boolean keywords 'true'/'false' found, got '${lexemeTrue}' and '${lexemeFalse}'")
+            return Token(
+                type = if (quotesCount == 2) Token.TokenType.STRING_LITERAL else Token.TokenType.INVALID,
+                startPosition = startPosition,
+                length = length,
+                lexeme = lexeme.joinToString()
+            )
         }
     }
 
@@ -313,7 +245,6 @@ class Lexer {
         return Token(type, startPosition, length, lexeme.joinToString())
     }
 
-    // TODO: use single getIdentifierValue function to get value of 'true'/'false'/keywords/identifiers
     private fun getIdentifierToken(context: Context): Token {
         val startPosition = context.currentPosition.copy()
         var length = 0
