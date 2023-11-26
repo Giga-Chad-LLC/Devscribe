@@ -23,6 +23,10 @@ class LexerTest {
         return count
     }
 
+    private fun String.getLastLineIndex(): Int {
+        return length - lastIndexOf(System.lineSeparator()) - System.lineSeparator().length
+    }
+
     @Test
     fun testEmptyInput() {
         val program = ""
@@ -73,7 +77,7 @@ class LexerTest {
         assertEquals(program.length, end.startPosition.offset)
 
         val correctLineIndex = program.countNewlines()
-        val lastLineLength = program.length - program.lastIndexOf('\n')
+        val lastLineLength = program.getLastLineIndex()
 
         assertEquals(correctLineIndex, end.startPosition.lineIndex)
         assertEquals(lastLineLength, end.startPosition.lineOffset)
@@ -90,7 +94,7 @@ class LexerTest {
         val end = tokens[1]
 
         val correctLineIndex = program.countNewlines()
-        val lastLineLength = program.length - program.lastIndexOf('\n')
+        val lastLineLength = program.getLastLineIndex()
 
         // plus
         assertEquals(TokenType.PLUS, plus.type)
