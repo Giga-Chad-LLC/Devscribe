@@ -16,13 +16,13 @@ class Token(
 ) {
     enum class TokenType {
         // Keywords
-        VAR, FUNCTION, IF, ELSE, FOR, WHILE,
+        VAR /* var */, FUNCTION /* function */, IF /* if */, ELSE /* else */, FOR /* for */, WHILE /* while */,
 
         // Delimiters
         SEMICOLON, COMMA, OPEN_CURLY, CLOSE_CURLY, OPEN_PAREN, CLOSE_PAREN,
 
         // Operators
-        PLUS, MINUS, DIVIDE, MULTIPLY, MODULO, ASSIGN /* = */, EQUALS /* == */, LESS /* < */, GREATER /* > */, NOT /* ! */,
+        PLUS, MINUS, DIVIDE, MULTIPLY, MODULO, ASSIGN /* = */, LESS /* < */, GREATER /* > */, NOT /* ! */, EQUALS /* == */,
 
         // Literals
         INTEGER_LITERAL, FLOAT_LITERAL, STRING_LITERAL, BOOLEAN_TRUE_LITERAL, BOOLEAN_FALSE_LITERAL, IDENTIFIER,

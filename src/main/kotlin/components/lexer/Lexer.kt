@@ -1,5 +1,11 @@
 package components.lexer
 
+
+private fun Char.isIdentifierCharacter(): Boolean {
+    val ch = this
+    return ch.isLetter() || (ch == '_')
+}
+
 class Lexer {
     private data class Context(
         val program: String,
@@ -28,18 +34,15 @@ class Lexer {
         return tokens
     }
 
-    private fun getNextToken(context: Context): Token {
+    private fun getNextToken(context: Context): Token? {
         skipWhitespaces(context)
 
-
         context.let {
-            // TODO: what if no tokens encountered after whitespace skipping
             if (it.currentIndex >= it.program.length) {
-                throw IllegalArgumentException("Current index ${it.currentIndex} exceeds allowed range of [0, ${it.program.length})")
+                return null
             }
 
             val ch = it.program[it.currentIndex]
-
             // Delimiters
             if (ch == ';') {
                 return getSingleCharacterToken(context, Token.TokenType.SEMICOLON)
@@ -78,26 +81,94 @@ class Lexer {
             else if (ch == '=') {
                 return getSingleCharacterToken(context, Token.TokenType.ASSIGN)
             }
+            else if (ch == '<') {
+                return getSingleCharacterToken(context, Token.TokenType.LESS)
+            }
+            else if (ch == '>') {
+                return getSingleCharacterToken(context, Token.TokenType.GREATER)
+            }
+            else if (ch == '!') {
+                return getSingleCharacterToken(context, Token.TokenType.NOT)
+            }
+            else if (getValueOfLength(context, 2) == "==") {
+                return getMultiCharacterToken(context, 2, Token.TokenType.EQUALS)
+            }
             // Literals
-            else if (ch.isDigit()) {
+            else if (ch.isDigit()) /* numeric */ {
                 // numeric literal must be BEFORE identifier
                 return getNumericLiteralToken(context)
             }
-            else if (ch == '"') {
+            else if (ch == '"') /* string */ {
                 return getStringLiteralToken(context)
             }
-            else if (isBooleanLiteral(context)) {
-                return getBooleanLiteral(context)
+            else if (getValueOfLength(context, 4) == "true") /* boolean */ {
+                return getMultiCharacterToken(context, 4, Token.TokenType.BOOLEAN_TRUE_LITERAL)
             }
-            else if (ch.isLetter()) {
+            else if (getValueOfLength(context, 5) == "false") /* boolean */ {
+                return getMultiCharacterToken(context, 5, Token.TokenType.BOOLEAN_FALSE_LITERAL)
+            }
+            // Keywords
+            else if (getValueOfLength(context, 3) == "var") {
+                return getMultiCharacterToken(context, 3, Token.TokenType.VAR)
+            }
+            else if (getValueOfLength(context, "function".length) == "function") {
+                return getMultiCharacterToken(context, "function".length, Token.TokenType.FUNCTION)
+            }
+            else if (getValueOfLength(context, 2) == "if") {
+                return getMultiCharacterToken(context, 2, Token.TokenType.IF)
+            }
+            else if (getValueOfLength(context, 4) == "else") {
+                return getMultiCharacterToken(context, 4, Token.TokenType.ELSE)
+            }
+            else if (getValueOfLength(context, 3) == "for") {
+                return getMultiCharacterToken(context, 3, Token.TokenType.FOR)
+            }
+            else if (getValueOfLength(context, 5) == "while") {
+                return getMultiCharacterToken(context, 5, Token.TokenType.WHILE)
+            }
+            else if (ch.isIdentifierCharacter()) /* identifier */ {
                 return getIdentifierToken(context)
             }
             else {
-                return Token(Token.TokenType.INVALID, it.currentPosition.copy(), 1, ch.toString())
+                return getMultiCharacterToken(context, 1, Token.TokenType.INVALID)
             }
         }
     }
 
+    private fun getValueOfLength(context: Context, len: Int): String? {
+        var result = ""
+
+        context.let {
+            var index = 0
+            while(it.currentIndex + index < it.program.length && result.length < len) {
+                result += it.program[it.currentIndex + index]
+                ++index
+            }
+        }
+
+        if (result.length != len) {
+            return null
+        }
+        return result
+    }
+
+    private fun getMultiCharacterToken(context: Context, len: Int, type: Token.TokenType): Token {
+        val lexeme = getValueOfLength(context, len)
+        require(lexeme != null && lexeme.length == len)
+
+        val token = Token(
+            type = type,
+            startPosition = context.currentPosition.copy(),
+            length = len,
+            lexeme = lexeme,
+        )
+
+        for (i in 0 until len) {
+            advance(context)
+        }
+
+        return token
+    }
 
     private fun getSingleCharacterToken(context: Context, type: Token.TokenType): Token {
         val token = Token(
