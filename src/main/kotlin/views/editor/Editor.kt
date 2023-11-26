@@ -323,6 +323,7 @@ private fun createHighlighters(text: String): List<AbstractHighlighter> {
             Token.TokenType.FOR,
             Token.TokenType.WHILE -> KeywordHighlighter(begin, end)
             Token.TokenType.NOT,
+            Token.TokenType.DOT,
             Token.TokenType.COMMA -> AuxiliaryHighlighter(begin, end)
             Token.TokenType.INTEGER_LITERAL,
             Token.TokenType.FLOAT_LITERAL -> NumericLiteralHighlighter(begin, end)
@@ -525,9 +526,8 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
                                     highlighter.begin - offset,
                                     highlighter.end - offset,
                                 )
-                            }*/
-
-                        /*println("begin=${it.textModel.totalOffsetOfLine(startLineIndex)}, " +
+                            }
+                        println("begin=${it.textModel.totalOffsetOfLine(startLineIndex)}, " +
                                 "end=${it.textModel.totalOffsetOfLine(endLineIndex - 1) + it.textModel.lineLength(endLineIndex - 1)}")
                         println(editorState.codeHighlighters.filter { highlighter ->
                             it.textModel.totalOffsetOfLine(startLineIndex) <= highlighter.begin &&
