@@ -3,7 +3,7 @@ package components.lexer
 
 private fun Char.isIdentifierCharacter(): Boolean {
     val ch = this
-    return ch.isLetter() || (ch == '_')
+    return ch.isLetterOrDigit() || (ch == '_')
 }
 
 class Lexer {
@@ -80,9 +80,6 @@ class Lexer {
             else if (ch == '%') {
                 return getSingleCharacterToken(context, Token.TokenType.MODULO)
             }
-            else if (ch == '=') {
-                return getSingleCharacterToken(context, Token.TokenType.ASSIGN)
-            }
             else if (ch == '<') {
                 return getSingleCharacterToken(context, Token.TokenType.LESS)
             }
@@ -93,7 +90,11 @@ class Lexer {
                 return getSingleCharacterToken(context, Token.TokenType.NOT)
             }
             else if (getValueOfLength(context, 2) == "==") {
+                // must be checked before '=' operator
                 return getMultiCharacterToken(context, 2, Token.TokenType.EQUALS)
+            }
+            else if (ch == '=') {
+                return getSingleCharacterToken(context, Token.TokenType.ASSIGN)
             }
             // Literals
             else if (ch.isDigit()) /* numeric */ {
@@ -107,6 +108,9 @@ class Lexer {
             }
             else if (getValueOfLength(context, 5) == "false") /* boolean */ {
                 return getMultiCharacterToken(context, 5, Token.TokenType.BOOLEAN_FALSE_LITERAL)
+            }
+            else if (ch.isIdentifierCharacter() && !isKeyword(getIdentifierLexeme(context))) /* identifier */ {
+                return getIdentifierToken(context)
             }
             // Keywords
             else if (getValueOfLength(context, 3) == "var") {
@@ -126,9 +130,6 @@ class Lexer {
             }
             else if (getValueOfLength(context, 5) == "while") {
                 return getMultiCharacterToken(context, 5, Token.TokenType.WHILE)
-            }
-            else if (ch.isIdentifierCharacter()) /* identifier */ {
-                return getIdentifierToken(context)
             }
             else {
                 return getMultiCharacterToken(context, 1, Token.TokenType.INVALID)
@@ -156,15 +157,17 @@ class Lexer {
 
     private fun getSingleCharacterToken(context: Context, type: Token.TokenType): Token {
         return getMultiCharacterToken(context, 1, type)
-        /*val token = Token(
-            type = type,
-            startPosition = context.currentPosition.copy(),
-            length = 1,
-            lexeme = context.program[context.currentIndex].toString()
-        )
-        advance(context)
+    }
 
-        return token*/
+    private fun isKeyword(identifier: String): Boolean {
+        val keywords = listOf("var", "function", "if", "else", "for", "while")
+
+        for (keyword in keywords) {
+            if (identifier == keyword) {
+                return true
+            }
+        }
+        return false
     }
 
 
@@ -214,7 +217,7 @@ class Lexer {
                 type = if (quotesCount == 2) Token.TokenType.STRING_LITERAL else Token.TokenType.INVALID,
                 startPosition = startPosition,
                 length = length,
-                lexeme = lexeme.joinToString()
+                lexeme = lexeme.joinToString("")
             )
         }
     }
@@ -242,9 +245,35 @@ class Lexer {
                 }
             }
         }
-        return Token(type, startPosition, length, lexeme.joinToString())
+        return Token(type, startPosition, length, lexeme.joinToString(""))
     }
 
+
+    /**
+     * Method retrieves identifier lexeme without advancing current index of the program
+     */
+    private fun getIdentifierLexeme(context: Context): String {
+        val lexeme: MutableList<Char> = mutableListOf()
+
+        context.let {
+            var index = it.currentIndex
+            var ch = it.program[index]
+
+            while(index < it.program.length && ch.isIdentifierCharacter()) {
+                lexeme.add(ch)
+
+                ++index
+                if (index < it.program.length) {
+                    ch = it.program[index]
+                }
+            }
+        }
+
+        return lexeme.joinToString("")
+    }
+
+
+    // TODO: use getIdentifierLexeme as delegate
     private fun getIdentifierToken(context: Context): Token {
         val startPosition = context.currentPosition.copy()
         var length = 0
@@ -252,7 +281,7 @@ class Lexer {
 
         context.let {
             var ch = it.program[it.currentIndex]
-            while(it.currentIndex < it.program.length && ch.isLetterOrDigit()) {
+            while(it.currentIndex < it.program.length && ch.isIdentifierCharacter()) {
                 ++length
                 lexeme.add(ch)
 
@@ -262,7 +291,7 @@ class Lexer {
                 }
             }
         }
-        return Token(Token.TokenType.IDENTIFIER, startPosition, length, lexeme.joinToString())
+        return Token(Token.TokenType.IDENTIFIER, startPosition, length, lexeme.joinToString(""))
     }
 
     // TODO: make offset incrementation inside if/else branches?
