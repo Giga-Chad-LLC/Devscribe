@@ -23,6 +23,7 @@ class Token(
 
         // Operators
         PLUS, MINUS, DIVIDE, MULTIPLY, MODULO, ASSIGN /* = */, LESS /* < */, GREATER /* > */, NOT /* ! */, EQUALS /* == */,
+        AND /* && */, OR /* || */,
 
         // Literals
         INTEGER_LITERAL, FLOAT_LITERAL, STRING_LITERAL, BOOLEAN_TRUE_LITERAL, BOOLEAN_FALSE_LITERAL, IDENTIFIER,

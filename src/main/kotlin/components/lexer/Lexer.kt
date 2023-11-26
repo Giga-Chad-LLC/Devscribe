@@ -101,6 +101,12 @@ class Lexer {
                 // must be checked before '=' operator
                 return getMultiCharacterToken(context, 2, Token.TokenType.EQUALS)
             }
+            else if (getValueOfLength(context, 2) == "&&") {
+                return getMultiCharacterToken(context, 2, Token.TokenType.AND)
+            }
+            else if (getValueOfLength(context, 2) == "||") {
+                return getMultiCharacterToken(context, 2, Token.TokenType.OR)
+            }
             else if (ch == '=') {
                 return getSingleCharacterToken(context, Token.TokenType.ASSIGN)
             }
@@ -218,8 +224,6 @@ class Lexer {
                     ch = it.program[it.currentIndex]
                 }
             }
-
-
 
             return Token(
                 type = if (quotesCount == 2) Token.TokenType.STRING_LITERAL else Token.TokenType.INVALID,
