@@ -38,6 +38,7 @@ interface Visitor {
     fun visit(node: ElseNode)
     fun visit(node: ForLoopNode)
     fun visit(node: WhileLoopNode)
+    fun visit(node: ScopeNode)
 
     fun visit(node: EndNode)
     fun visit(node: InvalidNode)
