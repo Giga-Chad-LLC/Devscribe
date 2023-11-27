@@ -33,6 +33,7 @@ interface Visitor {
     fun visit(node: ForLoopNode)
     fun visit(node: WhileLoopNode)
     fun visit(node: ScopeNode)
+    fun visit(node: DeclarationNode)
     fun visit(node: DefinitionNode)
     fun visit(node: FunctionCallNode)
 

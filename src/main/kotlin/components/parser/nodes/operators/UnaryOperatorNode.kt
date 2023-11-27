@@ -8,7 +8,6 @@ enum class UnaryOperatorType {
     NOT,
 }
 
-
 class UnaryOperatorNode(val expression: AstNode, val op: UnaryOperatorType) : AstNode {
     override fun accept(visitor: Visitor) {
         visitor.visit(this)
