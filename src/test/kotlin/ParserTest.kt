@@ -825,27 +825,122 @@ class ParserTest {
 
     @Test
     fun testAssignmentToAnotherVariable() {
+        val identifier1 = "a"
+        val identifier2 = "b"
+        val literal = "10"
 
+        val program = """
+            var $identifier1;
+            var $identifier2 = $literal;
+            $identifier1 = $identifier2;
+        """.trimIndent()
+
+        val tokens = lexer.tokenize(program)
+
+        val expected = ProgramNode(listOf(
+            StatementNode(DeclarationNode(IdentifierNode(identifier1))),
+            StatementNode(DefinitionNode(IdentifierNode(identifier2), IntegerNode(literal))),
+            StatementNode(AssignmentNode(IdentifierNode(identifier1), IdentifierNode(identifier2)))
+        ))
+
+        val root = parser.parse(tokens)
+
+        val got = comparator.compare(expected, root)
+        assertEquals(true, got)
     }
 
     @Test
     fun testEmptyStatements() {
+        val program = ";;;;"
+        val tokens = lexer.tokenize(program)
 
+        val expected = ProgramNode(listOf(
+            StatementNode(NoOperationNode()),
+            StatementNode(NoOperationNode()),
+            StatementNode(NoOperationNode()),
+            StatementNode(NoOperationNode()),
+        ))
+
+        val root = parser.parse(tokens)
+
+        val got = comparator.compare(expected, root)
+        assertEquals(true, got)
     }
 
     @Test
     fun testIfConstructDefinition() {
+        val program = "if (true) {}"
+        val tokens = lexer.tokenize(program)
 
+        val expected = ProgramNode(listOf(
+            StatementNode(IfNode(
+                condition = BooleanTrueNode(),
+                body = ScopeNode(listOf()) // TODO: 'listOf()' or 'listOf(StatementNode(NoOperationNode()))'?
+            ))
+        ))
+
+        val root = parser.parse(tokens)
+
+        val got = comparator.compare(expected, root)
+        assertEquals(true, got)
     }
 
     @Test
     fun testIfConstructDefinitionWithNoCurlyBraces() {
+        val program = "if (true) callback(1, 2, 3);"
+        val tokens = lexer.tokenize(program)
 
+        val expected = ProgramNode(listOf(
+            StatementNode(IfNode(
+                condition = BooleanTrueNode(),
+                body = ScopeNode(listOf(
+                    StatementNode(FunctionCallNode(
+                        identifier = IdentifierNode("callback"),
+                        arguments = listOf(IntegerNode("1"), IntegerNode("2"), IntegerNode("3"))
+                    ))
+                ))
+            ))
+        ))
+
+        val root = parser.parse(tokens)
+
+        val got = comparator.compare(expected, root)
+        assertEquals(true, got)
     }
 
     @Test
     fun testIfElseConstructDefinition() {
+        val program = """
+            if (false) {
+                var value = 10;
+                print(value);
+            }
+            else {
+                var value = "string";
+            }
+        """.trimIndent()
 
+        val tokens = lexer.tokenize(program)
+
+        val expected = ProgramNode(listOf(
+            StatementNode(IfNode(
+                condition = BooleanFalseNode(),
+                body = ScopeNode(listOf(
+                    StatementNode(DefinitionNode(IdentifierNode("value"), IntegerNode("10"))),
+                    StatementNode(FunctionCallNode(IdentifierNode("print"), listOf(IdentifierNode("value"))))
+                ))
+            )),
+            StatementNode(ElseNode(
+                ScopeNode(listOf(
+                    StatementNode(DefinitionNode(IdentifierNode("value"), StringNode("\"string\"")))
+                ))
+            )),
+        ))
+
+        val root = parser.parse(tokens)
+
+        val got = comparator.compare(expected, root)
+        assertEquals(true, got)
     }
 
     @Test
