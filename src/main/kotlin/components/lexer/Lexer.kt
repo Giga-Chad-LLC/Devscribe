@@ -6,6 +6,7 @@ private fun Char.isIdentifierCharacter(): Boolean {
     return ch.isLetterOrDigit() || (ch == '_')
 }
 
+// TODO: move lexer into interface
 class Lexer {
     private data class Context(
         val program: String,
@@ -145,6 +146,9 @@ class Lexer {
             else if (getValueOfLength(context, 5) == "while") {
                 return getMultiCharacterToken(context, 5, Token.TokenType.WHILE)
             }
+            else if (getValueOfLength(context, 6) == "return") {
+                return getMultiCharacterToken(context, 6, Token.TokenType.RETURN)
+            }
             else {
                 return getMultiCharacterToken(context, 1, Token.TokenType.INVALID)
             }
@@ -170,7 +174,7 @@ class Lexer {
 
 
     private fun isKeyword(identifier: String): Boolean {
-        val keywords = listOf("var", "function", "if", "else", "for", "while")
+        val keywords = listOf("var", "function", "if", "else", "for", "while", "return")
 
         for (keyword in keywords) {
             if (identifier == keyword) {

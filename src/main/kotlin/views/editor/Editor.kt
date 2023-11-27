@@ -508,7 +508,7 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
                         val (startLineIndex, endLineIndex) = editorState.viewportLinesRange()
                         val viewportVisibleText = editorState.calculateViewportVisibleText()
 
-                        // TODO: temporal for testing
+                        // TODO: temporal for testing; implement better integration
                         val textStyles = createHighlighters(viewportVisibleText)
                             .map { highlighter -> AnnotatedString.Range(
                                 highlighter.style, highlighter.begin, highlighter.end) }

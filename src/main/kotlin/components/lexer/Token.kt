@@ -17,6 +17,7 @@ class Token(
     enum class TokenType {
         // Keywords
         VAR /* var */, FUNCTION /* function */, IF /* if */, ELSE /* else */, FOR /* for */, WHILE /* while */,
+        RETURN /* return */,
 
         // Delimiters
         SEMICOLON, COMMA, DOT, OPEN_CURLY, CLOSE_CURLY, OPEN_PAREN, CLOSE_PAREN, OPEN_SQUARE_BRACKET, CLOSE_SQUARE_BRACKET,
