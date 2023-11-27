@@ -5,9 +5,8 @@ import components.parser.visitors.Visitor
 
 class FunctionNode(
     val identifier: String,
-    val arguments: List<AstNode>,
-    // TODO: make it a single AstNode since we have ScopeNode?
-    val body: List<AstNode>
+    val arguments: List<AstNode>, // TODO: those all are strings; change to List<String>?
+    val body: AstNode
     ) : AstNode {
     override fun accept(visitor: Visitor) {
         visitor.visit(this)

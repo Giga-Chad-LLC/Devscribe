@@ -5,6 +5,6 @@ import components.parser.visitors.Visitor
 
 class NoOperationNode : AstNode {
     override fun accept(visitor: Visitor) {
-        // No operation
+        /* No operation */
     }
 }
