@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test
 
 
 
+// TODO: make single CompositeNode which stores list of nodes, others use it
 class ParserTest {
     private val lexer = Lexer()
     private val parser = createParser()
@@ -58,7 +59,6 @@ class ParserTest {
 
         override fun visit(node: ProgramNode) {
             setOrProvideNode(node) { peer ->
-                // compare other and current node
                 if (!((peer is ProgramNode) && peer.statements.size == node.statements.size)) {
                     treesEqual = false
                     return@setOrProvideNode
@@ -66,7 +66,7 @@ class ParserTest {
 
                 var statementsEqual = true
                 for (i in node.statements.indices) {
-                    val first = (other as ProgramNode).statements[i]
+                    val first = peer.statements[i]
                     val second = node.statements[i]
                     statementsEqual = statementsEqual && compare(first, second)
                 }
@@ -218,6 +218,24 @@ class ParserTest {
             }
         }
 
+        override fun visit(node: FunctionCallNode) {
+            setOrProvideNode(node) { peer ->
+                if (!((peer is FunctionCallNode) && peer.arguments.size == node.arguments.size)) {
+                    treesEqual = false
+                    return@setOrProvideNode
+                }
+
+                var argumentsEqual = true
+                for (i in node.arguments.indices) {
+                    val first = peer.arguments[i]
+                    val second = node.arguments[i]
+                    argumentsEqual = argumentsEqual && compare(first, second)
+                }
+
+                treesEqual = argumentsEqual
+            }
+        }
+
         override fun visit(node: EndNode) {
             setOrProvideNode(node) { peer ->
                 treesEqual = (peer is EndNode)
@@ -342,7 +360,6 @@ class ParserTest {
         assertEquals(true, got)
     }
 
-    // TODO: make single CompositeNode which stores list of nodes, others use it
 
     @Test
     fun testAstComparatorOnForLoopASTs() {
@@ -395,6 +412,197 @@ class ParserTest {
 
         val got = comparator.compare(root1, root2)
         assertEquals(true, got)
+    }
+
+    @Test
+    fun testAstComparatorOnWhileLoopASTs() {
+        /**
+         * Program:
+         * ```
+         * var i = 0;
+         * var N = 10;
+         * while(i < N) {
+         *  print(i)
+         * }
+         * ```
+         */
+
+        val root = ProgramNode(listOf(
+            StatementNode(DefinitionNode("i", IntegerNode("0"))),
+            StatementNode(DefinitionNode("N", IntegerNode("10"))),
+            StatementNode(WhileLoopNode(
+                condition = BinaryOperatorNode(
+                    lhs = IdentifierNode("i"),
+                    rhs = IdentifierNode("N"),
+                    op = BinaryOperatorType.LESS,
+                ),
+                body = ScopeNode(listOf(
+                    FunctionCallNode(
+                        identifier = "print",
+                        arguments = listOf(IdentifierNode("i"))
+                    )
+                ))
+            ))
+        ))
+
+        val got = comparator.compare(root, root)
+        assertEquals(true, got)
+    }
+
+    @Test
+    fun testAstComparatorWithForAndWhileLoopsASTs() {
+        /**
+         * Program 1:
+         * ```
+         * for (var i = 0; i < 10; i = i + 1) {}
+         * ```
+         *
+         * Program 2:
+         * ```
+         * while (i < 10) {}
+         * ```
+         */
+
+        // program 1
+        val root1 = ProgramNode(listOf(
+            StatementNode(ForLoopNode(
+                enteringStatement = DefinitionNode("i", IntegerNode("0")),
+                condition = BinaryOperatorNode(
+                    lhs = IdentifierNode("i"),
+                    rhs = IntegerNode("10"),
+                    op = BinaryOperatorType.LESS,
+                ),
+                postIterationExpression = AssignmentNode(
+                    identifier = "i",
+                    BinaryOperatorNode(
+                        lhs = IdentifierNode("i"),
+                        rhs = IntegerNode("1"),
+                        op = BinaryOperatorType.PLUS,
+                    ),
+                ),
+                body = ScopeNode(listOf())
+            ))
+        ))
+
+        // program 2
+        val root2 = ProgramNode(listOf(
+            StatementNode(WhileLoopNode(
+                condition = BinaryOperatorNode(
+                    lhs = IdentifierNode("i"),
+                    rhs = IdentifierNode("10"),
+                    op = BinaryOperatorType.LESS,
+                ),
+                body = ScopeNode(listOf())
+            ))
+        ))
+
+        val got = comparator.compare(root1, root2)
+        assertEquals(false, got)
+    }
+
+    @Test
+    fun testAstComparatorIfElseBranchesASTs() {
+        /**
+         * Program:
+         * ```
+         * var i = 22;
+         * if (10 + 20 == 30 && i == 10) {}
+         * else if (i == 0) {}
+         * else {}
+         * ```
+         */
+
+        val root = ProgramNode(listOf(
+            StatementNode(DefinitionNode("i", IntegerNode("22"))),
+            StatementNode(IfNode(
+                condition = BinaryOperatorNode(
+                    BinaryOperatorNode(
+                        BinaryOperatorNode(IntegerNode("10"), IntegerNode("20"), BinaryOperatorType.PLUS),
+                        IntegerNode("30"),
+                        BinaryOperatorType.EQUALS,
+                    ),
+                    BinaryOperatorNode(IdentifierNode("i"), IntegerNode("10"), BinaryOperatorType.EQUALS),
+                    BinaryOperatorType.AND,
+                ),
+                body = ScopeNode(listOf(NoOperationNode()))
+            )),
+            StatementNode(ElseNode(IfNode(
+                condition = BinaryOperatorNode(
+                    IdentifierNode("i"), IntegerNode("0"), BinaryOperatorType.EQUALS),
+                body = ScopeNode(listOf(NoOperationNode())),
+            ))),
+            StatementNode(ElseNode(
+                ScopeNode(listOf(NoOperationNode()))
+            ))
+        ))
+
+        val got = comparator.compare(root, root)
+        assertEquals(true, got)
+    }
+
+
+    @Test
+    fun testAstComparatorWithDistinctIfElseBranchesASTs() {
+        /**
+         * Program 1:
+         * ```
+         * if (10 + 20 == 30 && i == 10) {}
+         * else if (i == 0) {}
+         * else {}
+         * ```
+         *
+         * Program 2:
+         * ```
+         * if (10 + 20 == 30 && i == 10) {}
+         * else if (i == 0) {}
+         * ```
+         */
+
+        val root1 = ProgramNode(listOf(
+            StatementNode(IfNode(
+                condition = BinaryOperatorNode(
+                    BinaryOperatorNode(
+                        BinaryOperatorNode(IntegerNode("10"), IntegerNode("20"), BinaryOperatorType.PLUS),
+                        IntegerNode("30"),
+                        BinaryOperatorType.EQUALS,
+                    ),
+                    BinaryOperatorNode(IdentifierNode("i"), IntegerNode("10"), BinaryOperatorType.EQUALS),
+                    BinaryOperatorType.AND,
+                ),
+                body = ScopeNode(listOf(NoOperationNode()))
+            )),
+            StatementNode(ElseNode(IfNode(
+                condition = BinaryOperatorNode(
+                    IdentifierNode("i"), IntegerNode("0"), BinaryOperatorType.EQUALS),
+                body = ScopeNode(listOf(NoOperationNode())),
+            ))),
+            StatementNode(ElseNode(
+                ScopeNode(listOf(NoOperationNode()))
+            ))
+        ))
+
+        val root2 = ProgramNode(listOf(
+            StatementNode(IfNode(
+                condition = BinaryOperatorNode(
+                    BinaryOperatorNode(
+                        BinaryOperatorNode(IntegerNode("10"), IntegerNode("20"), BinaryOperatorType.PLUS),
+                        IntegerNode("30"),
+                        BinaryOperatorType.EQUALS,
+                    ),
+                    BinaryOperatorNode(IdentifierNode("i"), IntegerNode("10"), BinaryOperatorType.EQUALS),
+                    BinaryOperatorType.AND,
+                ),
+                body = ScopeNode(listOf(NoOperationNode()))
+            )),
+            StatementNode(ElseNode(IfNode(
+                condition = BinaryOperatorNode(
+                    IdentifierNode("i"), IntegerNode("0"), BinaryOperatorType.EQUALS),
+                body = ScopeNode(listOf(NoOperationNode())),
+            )))
+        ))
+
+        val got = comparator.compare(root1, root2)
+        assertEquals(false, got)
     }
 
 

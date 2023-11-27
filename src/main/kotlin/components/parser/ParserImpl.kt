@@ -98,7 +98,7 @@ class ParserImpl : Parser {
 
         val scope = parseScope(iterator, statements)
         statements.add(StatementNode(
-                FunctionNode(identifier, arguments, listOf(scope))
+                FunctionNode(identifier, arguments, scope)
             ))
     }
 
