@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import common.TextConstants
 import java.util.stream.Collectors
+import kotlin.math.max
 
 // TODO: keep absolute offset for every line
 class LineArrayTextModel : TextModel {
@@ -109,7 +110,7 @@ class LineArrayTextModel : TextModel {
     }
 
     override fun insert(text: String) {
-        val chunks = text.split(System.lineSeparator())
+        val chunks = text.replace(' ', TextConstants.nonBreakingSpaceChar).split(System.lineSeparator())
         val textEndsWithLineSeparator = text.endsWith(System.lineSeparator())
 
         for (index in chunks.indices) {
@@ -143,7 +144,7 @@ class LineArrayTextModel : TextModel {
     }
 
     override fun install(text: String) {
-        val lines = text.split(System.lineSeparator())
+        val lines = text.replace(' ', TextConstants.nonBreakingSpaceChar).split(System.lineSeparator())
         textLines.clear()
 
         if (lines.isEmpty()) {
@@ -171,16 +172,108 @@ class LineArrayTextModel : TextModel {
                 newCurrentLineOffset = textLines[lineNumber - 1].length
             }
             else if (currentLineOffset > 0) {
+                // moving one symbol left
                 newOffset = offset - 1
                 newLineNumber = lineNumber
                 newCurrentLineOffset = currentLineOffset - 1
-                // moving one symbol left
             }
             else {
                 // staying at offset 0
                 newOffset = offset
                 newLineNumber = lineNumber
                 newCurrentLineOffset = currentLineOffset
+            }
+
+            Cursor(newOffset, newLineNumber, newCurrentLineOffset)
+        }
+    }
+
+    private fun calculateShiftToNextWord(chunk: String): Int {
+        val delimiters = listOf(
+            TextConstants.nonBreakingSpaceChar,
+            '.', ',',
+            '/', '\\',
+            '(', ')',
+        )
+
+        val whitespaceCountBeforeFirstWord = chunk
+            // dropping letters after a starting sequence of consecutive delimiters
+            .dropLast(chunk.length - max(chunk.indexOfFirst { !delimiters.contains(it) }, 0))
+            .count()
+
+        val firstWord: String = chunk
+            .split(*delimiters.map { ch -> ch.toString() }.toTypedArray())
+            .firstOrNull { s -> s.isNotEmpty() } ?: ""
+
+        println("whitespaceCountBeforeFirstWord=${whitespaceCountBeforeFirstWord} " +
+                " " +
+                "firstWord='${firstWord}'")
+
+        return whitespaceCountBeforeFirstWord + firstWord.length
+    }
+
+    override fun forwardToNextWord() {
+        val chunk = splitCurrentCursorLine().afterCursor
+
+        cursor = cursor.run {
+            val newOffset: Int
+            val newLineNumber: Int
+            val newCurrentLineOffset: Int
+
+            val shift = calculateShiftToNextWord(chunk)
+
+            if (shift > 0) {
+                // moving to the end of first word
+                newOffset = offset + shift
+                newLineNumber = lineNumber
+                newCurrentLineOffset = currentLineOffset + shift
+            }
+            else if (lineNumber + 1 < textLines.size) {
+                // move of the next line
+                newOffset = offset + System.lineSeparator().length
+                newLineNumber = lineNumber + 1
+                newCurrentLineOffset = 0
+            }
+            else {
+                // placing cursor on the end of last line
+                newOffset = offset
+                newLineNumber = lineNumber
+                newCurrentLineOffset = textLines[lineNumber].length
+            }
+
+            Cursor(newOffset, newLineNumber, newCurrentLineOffset)
+        }
+    }
+
+    override fun backwardToPreviousWord() {
+        val chunk = splitCurrentCursorLine().beforeCursor
+
+        cursor = cursor.run {
+            val newOffset: Int
+            val newLineNumber: Int
+            val newCurrentLineOffset: Int
+
+            val shift = calculateShiftToNextWord(chunk.reversed())
+            println("chunk='${chunk}', shift=${shift}")
+
+
+            if (shift > 0) {
+                // moving to the end of first word
+                newOffset = offset - shift + 1
+                newLineNumber = lineNumber
+                newCurrentLineOffset = currentLineOffset - shift + 1
+            }
+            else if (lineNumber > 0) {
+                // move of the next line
+                newOffset = offset - System.lineSeparator().length
+                newLineNumber = lineNumber - 1
+                newCurrentLineOffset = textLines[newLineNumber].length
+            }
+            else {
+                // placing cursor on the start of first line
+                newOffset = offset
+                newLineNumber = lineNumber
+                newCurrentLineOffset = 0
             }
 
             Cursor(newOffset, newLineNumber, newCurrentLineOffset)
@@ -295,8 +388,6 @@ class LineArrayTextModel : TextModel {
             throw IllegalArgumentException("Line offset must be in range [0; ${cursoredLine.length}], got $lineOffset")
         }
 
-        println("Cursored line: '${textLines[lineIndex]}'")
-
         var absoluteOffset = lineOffset
         for (i in 0 until lineIndex) {
             absoluteOffset += textLines[i].length + System.lineSeparator().length
@@ -324,6 +415,14 @@ class LineArrayTextModel : TextModel {
             offset += textLines[i].length + System.lineSeparator().length
         }
         return offset
+    }
+
+    override fun textLines(): List<String> {
+        /**
+         * Calling toList() insures that Composable components will be able to listen updates of the list
+         * using LaunchedEffect()
+         */
+        return textLines.toList()
     }
 
     override fun maxLineLength(): Int {

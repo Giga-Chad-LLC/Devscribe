@@ -21,9 +21,9 @@ import kotlinx.coroutines.runBlocking
 import viewmodels.FileTreeViewModel
 import viewmodels.ProjectViewModel
 import viewmodels.TabsViewModel
-import views.common.CustomTheme
-import views.common.Fonts
-import views.common.Settings
+import views.design.CustomTheme
+import views.design.Fonts
+import views.design.Settings
 import views.filestree.FileTree
 import views.filestree.FileTreeLabel
 import views.tabs.TabsContainer
@@ -96,19 +96,19 @@ fun App() {
                         tabsViewModel = tabsViewModel
                     )
 
-                    val modifier = Modifier.fillMaxSize().background(CustomTheme.colors.backgroundDark)
                     val activeFile = tabsViewModel.activeFile
 
                     if (activeFile != null) {
                         Editor(
-                            modifier = modifier,
                             activeFileModel = activeFile,
                             settings = settings,
                         )
                     }
                     else {
                         Box(
-                            modifier = modifier,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(CustomTheme.colors.backgroundDark),
                             contentAlignment = Alignment.Center,
                         ) {
                             Text(
