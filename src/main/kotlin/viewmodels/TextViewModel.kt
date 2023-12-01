@@ -10,16 +10,22 @@ import components.vfs.commands.SyncFileWithFrontendCommand
 import kotlinx.coroutines.CoroutineScope
 import models.PinnedFileModel
 import models.text.Cursor
+import models.text.TextModel
 
-class TextViewModel(coroutineScope: CoroutineScope) {
+class TextViewModel(coroutineScope: CoroutineScope, private var activeFileModel: PinnedFileModel) {
+    val textModel: TextModel
+        get() {
+            return activeFileModel.textModel
+        }
+
     val text: String
         get() {
-            return activeFileModel!!.textModel.text
+            return activeFileModel.textModel.text
         }
 
     val cursor: Cursor
         get() {
-            return activeFileModel!!.textModel.cursor
+            return activeFileModel.textModel.cursor
         }
 
     private val debounceHandler = DebounceHandler(
@@ -28,11 +34,14 @@ class TextViewModel(coroutineScope: CoroutineScope) {
         TextViewModel::syncModelWithVFS
     )
 
-    var activeFileModel: PinnedFileModel? = null
-        set(newActiveFile) {
-            if (field != newActiveFile) syncModelWithVFS(field)
-            field = newActiveFile
+    /**
+     * Updates current active file model if provided pinned file model is not the same as current file
+     */
+    fun updateActiveFileModel(other: PinnedFileModel) {
+        if (activeFileModel.id != other.id) {
+            activeFileModel = other
         }
+    }
 
     companion object {
         private fun syncModelWithVFS(fileToSyncWith: PinnedFileModel?) {
@@ -72,35 +81,35 @@ class TextViewModel(coroutineScope: CoroutineScope) {
             saveFileOnDisk(currentFile)
         }
         dispatcher.subscribe(KeyboardAction.BACKSPACE) {
-            activeFileModel?.textModel?.backspace()
+            activeFileModel.textModel.backspace()
             debounceHandler.run(activeFileModel)
         }
         dispatcher.subscribe(KeyboardAction.NEWLINE) {
-            activeFileModel?.textModel?.newline()
+            activeFileModel.textModel.newline()
             debounceHandler.run(activeFileModel)
         }
         dispatcher.subscribe(KeyboardAction.DIRECTION_UP) {
-            activeFileModel?.textModel?.changeCursorPositionDirectionUp()
+            activeFileModel.textModel.changeCursorPositionDirectionUp()
         }
         dispatcher.subscribe(KeyboardAction.DIRECTION_RIGHT) {
-            activeFileModel?.textModel?.changeCursorPositionDirectionRight()
+            activeFileModel.textModel.changeCursorPositionDirectionRight()
         }
         dispatcher.subscribe(KeyboardAction.DIRECTION_DOWN) {
-            activeFileModel?.textModel?.changeCursorPositionDirectionDown()
+            activeFileModel.textModel.changeCursorPositionDirectionDown()
         }
         dispatcher.subscribe(KeyboardAction.DIRECTION_LEFT) {
-            activeFileModel?.textModel?.changeCursorPositionDirectionLeft()
+            activeFileModel.textModel.changeCursorPositionDirectionLeft()
         }
         dispatcher.subscribe(KeyboardAction.SPACE) {
-            activeFileModel?.textModel?.insert(TextConstants.nonBreakingSpaceChar)
+            activeFileModel.textModel.insert(TextConstants.nonBreakingSpaceChar)
             debounceHandler.run(activeFileModel)
         }
         dispatcher.subscribe(KeyboardAction.DELETE) {
-            activeFileModel?.textModel?.delete()
+            activeFileModel.textModel.delete()
             debounceHandler.run(activeFileModel)
         }
         dispatcher.subscribe(KeyboardAction.PRINTABLE_SYMBOL) {
-            activeFileModel?.textModel?.insert(it.utf16CodePoint.toChar())
+            activeFileModel.textModel.insert(it.utf16CodePoint.toChar())
             debounceHandler.run(activeFileModel)
         }
     }

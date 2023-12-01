@@ -16,12 +16,12 @@ class FileTreeModel {
     }
 
 
-    inner class NodeModel (
+    inner class NodeModel(
         val file: VFSNode,
         val level: Int = 0 // determines the offset inside sidebar
     ) {
         val filename: String get() = file.getFilename()
-        var children: List<NodeModel> by mutableStateOf(emptyList())
+        private var children: List<NodeModel> by mutableStateOf(emptyList())
         private val canExpand: Boolean get() = file.hasChildren()
 
         val type: NodeType

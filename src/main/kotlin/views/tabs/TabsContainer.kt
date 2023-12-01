@@ -15,9 +15,11 @@ fun TabsContainer(modifier: Modifier, settings: Settings, tabsViewModel: TabsVie
         horizontalArrangement = Arrangement.Start
     ) {
         for (pinnedFileModel in tabsViewModel.files) {
+            val isActive = (tabsViewModel.activeFile?.id == pinnedFileModel.id)
+
             Tab(
                 filename = pinnedFileModel.filename,
-                active = pinnedFileModel.active,
+                active = isActive,
                 onTabClick = { tabsViewModel.select(pinnedFileModel.id) },
                 settings = settings,
                 onCloseButtonClick = {

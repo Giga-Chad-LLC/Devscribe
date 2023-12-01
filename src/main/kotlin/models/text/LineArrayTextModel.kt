@@ -7,24 +7,24 @@ import androidx.compose.runtime.setValue
 import common.TextConstants
 import java.util.stream.Collectors
 
+// TODO: keep absolute offset for every line
 class LineArrayTextModel : TextModel {
-    private val textLines = mutableStateListOf("")
+    private var textLines = mutableStateListOf("")
 
-    override var text: String
+    override val text: String
         get() {
-            // joining lines with newline symbol
-            return textLines.toList().stream().map{ it.replace(TextConstants.nonBreakingSpaceChar, ' ') }.collect(Collectors.joining(System.lineSeparator()))
-        }
-        set(data) {
-            cursor = Cursor(0, 0, 0)
-            textLines.clear()
-            textLines.add("")
-            insert(data.replace(' ', TextConstants.nonBreakingSpaceChar))
+            return linesToText(textLines.toList())
         }
 
     override var cursor by mutableStateOf(Cursor(0, 0, 0))
 
     private data class CurrentCursorLineChunks(val beforeCursor: String, val afterCursor: String)
+
+    private fun linesToText(lines: List<String>): String {
+        // joining lines with newline symbol
+        return lines.stream().map{ it.replace(TextConstants.nonBreakingSpaceChar, ' ') }
+            .collect(Collectors.joining(System.lineSeparator()))
+    }
 
     private fun splitCurrentCursorLine(): CurrentCursorLineChunks {
         val currentLine = textLines[cursor.lineNumber]
@@ -37,6 +37,7 @@ class LineArrayTextModel : TextModel {
 
         return CurrentCursorLineChunks(currentLineBeforeCursor, currentLineAfterCursor)
     }
+
 
     override fun backspace() {
         val currentCursorLineChunks = splitCurrentCursorLine()
@@ -87,10 +88,10 @@ class LineArrayTextModel : TextModel {
                 currentCursorLineChunks.beforeCursor + currentCursorLineChunks.afterCursor.substring(1)
         }
 
-//        println(textLines.stream()
-//            .map { s -> "'${s.replace(TextConstants.nonBreakingSpaceChar, ' ')}'" }
-//            .collect(Collectors.joining(", ", "[", "]")))
-//        println(cursor)
+        /*println(textLines.stream()
+            .map { s -> "'${s.replace(TextConstants.nonBreakingSpaceChar, ' ')}'" }
+            .collect(Collectors.joining(", ", "[", "]")))*/
+        println(cursor)
     }
 
     override fun newline() {
@@ -124,10 +125,10 @@ class LineArrayTextModel : TextModel {
                 Cursor(newOffset, lineNumber, newCurrentLineOffset)
             }
 
-//            println(textLines.stream()
-//                .map { s -> "'${s.replace(TextConstants.nonBreakingSpaceChar, ' ')}'" }
-//                .collect(Collectors.joining(", ", "[", "]")))
-//            println(cursor)
+            /*println(textLines.stream()
+                .map { s -> "'${s.replace(TextConstants.nonBreakingSpaceChar, ' ')}'" }
+                .collect(Collectors.joining(", ", "[", "]")))*/
+            println(cursor)
 
             /**
              * If current line is the last one, and it does not end with line separator
@@ -139,6 +140,22 @@ class LineArrayTextModel : TextModel {
                 newline()
             }
         }
+    }
+
+    override fun install(text: String) {
+        val lines = text.split(System.lineSeparator())
+        textLines.clear()
+
+        if (lines.isEmpty()) {
+            textLines.add("")
+        }
+        else {
+            for (line in lines) {
+                textLines.add(line)
+            }
+        }
+
+        cursor = Cursor(0, 0, 0)
     }
 
     override fun changeCursorPositionDirectionLeft() {
@@ -262,5 +279,54 @@ class LineArrayTextModel : TextModel {
 
             Cursor(newOffset, newLineNumber, newCurrentLineOffset)
         }
+    }
+
+    private fun checkLineIndex(lineIndex: Int) {
+        if (!(0 <= lineIndex && lineIndex < textLines.size)) {
+            throw IllegalArgumentException("Line index must be in range [0; ${textLines.size}), got $lineIndex")
+        }
+    }
+
+    override fun changeCursorPosition(lineIndex: Int, lineOffset: Int) {
+        checkLineIndex(lineIndex)
+
+        val cursoredLine = textLines[lineIndex]
+        if (!(0 <= lineOffset && lineOffset <= cursoredLine.length)) {
+            throw IllegalArgumentException("Line offset must be in range [0; ${cursoredLine.length}], got $lineOffset")
+        }
+
+        println("Cursored line: '${textLines[lineIndex]}'")
+
+        var absoluteOffset = lineOffset
+        for (i in 0 until lineIndex) {
+            absoluteOffset += textLines[i].length + System.lineSeparator().length
+        }
+
+        cursor = Cursor(absoluteOffset, lineIndex, lineOffset)
+    }
+
+    override fun linesCount(): Int {
+        return textLines.size
+    }
+
+    override fun textInLinesRange(fromIndex: Int, toIndex: Int): String {
+        return linesToText(textLines.subList(fromIndex, toIndex))
+    }
+
+    override fun lineLength(lineIndex: Int): Int {
+        checkLineIndex(lineIndex)
+        return textLines[lineIndex].length
+    }
+
+    override fun totalOffsetOfLine(lineIndex: Int): Int {
+        var offset = 0
+        for (i in 0 until lineIndex) {
+            offset += textLines[i].length + System.lineSeparator().length
+        }
+        return offset
+    }
+
+    override fun maxLineLength(): Int {
+        return textLines.maxOfOrNull { s -> s.length } ?: 0
     }
 }

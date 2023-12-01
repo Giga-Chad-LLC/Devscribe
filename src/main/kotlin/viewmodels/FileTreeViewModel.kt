@@ -14,7 +14,7 @@ class FileTreeViewModel(private val fileTreeMode: FileTreeModel, private val tab
     fun click(node: FileTreeModel.NodeModel) = node.apply {
         when (type) {
             is FileTreeModel.NodeType.Folder -> toggleExpanded()
-            is FileTreeModel.NodeType.File -> tabsViewModel.pin(PinnedFileModel(node.file as VFSFile))
+            is FileTreeModel.NodeType.File -> tabsViewModel.pin(node.file as VFSFile)
         }
     }
 }
