@@ -87,10 +87,10 @@ class LineArrayTextModel : TextModel {
                 currentCursorLineChunks.beforeCursor + currentCursorLineChunks.afterCursor.substring(1)
         }
 
-        println(textLines.stream()
-            .map { s -> "'${s.replace(TextConstants.nonBreakingSpaceChar, ' ')}'" }
-            .collect(Collectors.joining(", ", "[", "]")))
-        println(cursor)
+//        println(textLines.stream()
+//            .map { s -> "'${s.replace(TextConstants.nonBreakingSpaceChar, ' ')}'" }
+//            .collect(Collectors.joining(", ", "[", "]")))
+//        println(cursor)
     }
 
     override fun newline() {
@@ -124,10 +124,10 @@ class LineArrayTextModel : TextModel {
                 Cursor(newOffset, lineNumber, newCurrentLineOffset)
             }
 
-            println(textLines.stream()
-                .map { s -> "'${s.replace(TextConstants.nonBreakingSpaceChar, ' ')}'" }
-                .collect(Collectors.joining(", ", "[", "]")))
-            println(cursor)
+//            println(textLines.stream()
+//                .map { s -> "'${s.replace(TextConstants.nonBreakingSpaceChar, ' ')}'" }
+//                .collect(Collectors.joining(", ", "[", "]")))
+//            println(cursor)
 
             /**
              * If current line is the last one, and it does not end with line separator

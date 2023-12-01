@@ -11,7 +11,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import components.FileChooser
+import components.dispatcher.KeyboardEventDispatcher
 import components.vfs.OSVirtualFileSystem
+import kotlinx.coroutines.runBlocking
 import viewmodels.FileTreeViewModel
 import viewmodels.ProjectViewModel
 import viewmodels.TabsViewModel
@@ -23,15 +26,26 @@ import views.tabs.TabsContainer
 import views.text.TextCanvas
 import java.nio.file.Path
 
+
 @Composable
 @Preview
 fun App() {
-    val vfs = OSVirtualFileSystem(Path.of("C:/Users/dmitriiart/Downloads/ProjectFolder"))
+    val vfs = OSVirtualFileSystem()
     val coroutineScope = rememberCoroutineScope() // required to run the state updates on the same scope as components composed
     val projectViewModel by remember { mutableStateOf(ProjectViewModel(vfs, coroutineScope)) }
     val tabsViewModel by remember { mutableStateOf(TabsViewModel(projectViewModel.tabsModel, coroutineScope)) }
     val fileTreeViewModel by remember { mutableStateOf(FileTreeViewModel(projectViewModel.fileTreeModel, tabsViewModel)) }
     var settings by remember { mutableStateOf(Settings()) }
+
+    KeyboardEventDispatcher.getInstance().subscribe(KeyboardEventDispatcher.KeyboardAction.OPEN_PROJECT) {
+        runBlocking {
+            val newProjectPath = FileChooser.chooseDirectory()
+            println("Project folder selected: '$newProjectPath'")
+            if (newProjectPath != null) {
+                projectViewModel.openProject(Path.of(newProjectPath))
+            }
+        }
+    }
 
     MaterialTheme(
         colors = CustomTheme.colors.material
