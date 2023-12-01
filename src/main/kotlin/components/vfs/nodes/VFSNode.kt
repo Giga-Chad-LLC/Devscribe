@@ -16,7 +16,6 @@ abstract class VFSNode(
     abstract fun isFile(): Boolean
     abstract fun isDirectory(): Boolean
     abstract fun hasChildren(): Boolean
-    fun getId(): Int = id
     fun getFilename(): String = filename
     fun getNodePath(): Path {
         return if (parent != null) {

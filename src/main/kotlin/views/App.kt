@@ -52,8 +52,8 @@ fun App() {
     KeyboardEventDispatcher.getInstance().subscribe(KeyboardEventDispatcher.KeyboardAction.OPEN_PROJECT) {
         runBlocking {
             val newProjectPath = FileChooser.chooseDirectory()
-            println("Project folder selected: '$newProjectPath'")
             if (newProjectPath != null) {
+                println("Project folder selected: '$newProjectPath'")
                 projectViewModel.openProject(Path.of(newProjectPath))
             }
         }
