@@ -1,7 +1,7 @@
 package viewmodels
 
 import components.FileChooser
-import components.dispatcher.KeyboardEventDispatcher
+import components.KeyboardEventDispatcher
 import components.vfs.VirtualFileSystem
 import components.vfs.commands.IndexCommand
 import kotlinx.coroutines.CoroutineScope

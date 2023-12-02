@@ -1,8 +1,8 @@
 package viewmodels
 
 import components.DebounceHandler
-import components.dispatcher.KeyboardEventDispatcher
-import components.dispatcher.KeyboardEventDispatcher.KeyboardAction
+import components.KeyboardEventDispatcher
+import components.KeyboardEventDispatcher.KeyboardAction
 import components.vfs.commands.SaveFileOnDiskCommand
 import components.vfs.commands.SyncFileWithFrontendCommand
 import kotlinx.coroutines.CoroutineScope

@@ -1,4 +1,4 @@
-package components.dispatcher
+package components
 
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.input.key.*
