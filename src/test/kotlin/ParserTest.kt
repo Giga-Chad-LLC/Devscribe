@@ -11,14 +11,10 @@ import components.parser.nodes.auxiliary.InvalidNode
 import components.parser.nodes.auxiliary.NoOperationNode
 import components.parser.nodes.constructs.*
 import components.parser.nodes.literals.*
-import components.parser.nodes.operators.AssignmentNode
-import components.parser.nodes.operators.BinaryOperatorNode
-import components.parser.nodes.operators.BinaryOperatorType
-import components.parser.nodes.operators.UnaryOperatorNode
+import components.parser.nodes.operators.*
 import components.parser.visitors.Visitor
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.TestTemplate
 
 
 // TODO: make single CompositeNode which stores list of nodes, others use it?
@@ -148,9 +144,9 @@ class ParserTest {
             }
         }
 
-        override fun visit(node: FunctionNode) {
+        override fun visit(node: FunctionDefinitionNode) {
             setOrProvideNode(node) { peer ->
-                if (!((peer is FunctionNode) && (peer.identifier == node.identifier) &&
+                if (!((peer is FunctionDefinitionNode) && (peer.identifier == node.identifier) &&
                             (peer.arguments.size == node.arguments.size) && compare(peer.body, node.body))) {
                     treesEqual = false
                     return@setOrProvideNode
@@ -170,13 +166,10 @@ class ParserTest {
             setOrProvideNode(node) { peer ->
                 treesEqual = (peer is IfNode) &&
                         compare(peer.condition, node.condition) &&
-                        compare(peer.body, node.body)
-            }
-        }
-
-        override fun visit(node: ElseNode) {
-            setOrProvideNode(node) { peer ->
-                treesEqual = (peer is ElseNode) && compare(peer.body, node.body)
+                        compare(peer.body, node.body) &&
+                        ((peer.otherwise == null && node.otherwise == null) ||
+                                ((peer.otherwise != null) && (node.otherwise != null) &&
+                                    compare(peer.otherwise!!, node.otherwise!!)))
             }
         }
 
@@ -245,6 +238,12 @@ class ParserTest {
                 }
 
                 treesEqual = argumentsEqual
+            }
+        }
+
+        override fun visit(node: ReturnNode) {
+            setOrProvideNode(node) { peer ->
+                treesEqual = (peer is ReturnNode) && compare(peer.expression, node.expression)
             }
         }
 
@@ -361,7 +360,7 @@ class ParserTest {
          */
 
         val root = ProgramNode(listOf(
-            StatementNode(FunctionNode(
+            StatementNode(FunctionDefinitionNode(
                 identifier = IdentifierNode("my_function"),
                 arguments = listOf(IdentifierNode("arg1"), IdentifierNode("arg2")),
                 body = ScopeNode(listOf(StatementNode(NoOperationNode())))
@@ -384,7 +383,7 @@ class ParserTest {
 
         val root1 = ProgramNode(listOf(
             StatementNode(ForLoopNode(
-                enteringStatement = DefinitionNode(IdentifierNode("i"), IntegerNode("0")),
+                enteringStatement = StatementNode(DefinitionNode(IdentifierNode("i"), IntegerNode("0"))),
                 condition = BinaryOperatorNode(
                     lhs = IdentifierNode("i"),
                     rhs = IntegerNode("10"),
@@ -404,7 +403,7 @@ class ParserTest {
 
         val root2 = ProgramNode(listOf(
             StatementNode(ForLoopNode(
-                enteringStatement = DefinitionNode(IdentifierNode("i"), IntegerNode("0")),
+                enteringStatement = StatementNode(DefinitionNode(IdentifierNode("i"), IntegerNode("0"))),
                 condition = BinaryOperatorNode(
                     lhs = IdentifierNode("i"),
                     rhs = IntegerNode("10"),
@@ -478,7 +477,7 @@ class ParserTest {
         // program 1
         val root1 = ProgramNode(listOf(
             StatementNode(ForLoopNode(
-                enteringStatement = DefinitionNode(IdentifierNode("i"), IntegerNode("0")),
+                enteringStatement = StatementNode(DefinitionNode(IdentifierNode("i"), IntegerNode("0"))),
                 condition = BinaryOperatorNode(
                     lhs = IdentifierNode("i"),
                     rhs = IntegerNode("10"),
@@ -536,15 +535,14 @@ class ParserTest {
                     BinaryOperatorNode(IdentifierNode("i"), IntegerNode("10"), BinaryOperatorType.EQUALS),
                     BinaryOperatorType.AND,
                 ),
-                body = ScopeNode(listOf(StatementNode(NoOperationNode())))
-            )),
-            StatementNode(ElseNode(IfNode(
-                condition = BinaryOperatorNode(
-                    IdentifierNode("i"), IntegerNode("0"), BinaryOperatorType.EQUALS),
                 body = ScopeNode(listOf(StatementNode(NoOperationNode()))),
-            ))),
-            StatementNode(ElseNode(
-                ScopeNode(listOf(StatementNode(NoOperationNode())))
+                otherwise = ScopeNode(listOf(
+                    StatementNode(IfNode(
+                        condition = BinaryOperatorNode(IdentifierNode("i"), IntegerNode("0"), BinaryOperatorType.EQUALS),
+                        body = ScopeNode(listOf(StatementNode(NoOperationNode()))),
+                        otherwise = ScopeNode(listOf(StatementNode(NoOperationNode()))),
+                    ))
+                ))
             ))
         ))
 
@@ -581,15 +579,15 @@ class ParserTest {
                     BinaryOperatorNode(IdentifierNode("i"), IntegerNode("10"), BinaryOperatorType.EQUALS),
                     BinaryOperatorType.AND,
                 ),
-                body = ScopeNode(listOf(StatementNode(NoOperationNode())))
-            )),
-            StatementNode(ElseNode(IfNode(
-                condition = BinaryOperatorNode(
-                    IdentifierNode("i"), IntegerNode("0"), BinaryOperatorType.EQUALS),
                 body = ScopeNode(listOf(StatementNode(NoOperationNode()))),
-            ))),
-            StatementNode(ElseNode(
-                ScopeNode(listOf(StatementNode(NoOperationNode())))
+                otherwise = ScopeNode(listOf(
+                    StatementNode(IfNode(
+                        // TODO: make 'condition' be an expression node
+                        condition = BinaryOperatorNode(IdentifierNode("i"), IntegerNode("0"), BinaryOperatorType.EQUALS),
+                        body = ScopeNode(listOf(StatementNode(NoOperationNode()))),
+                        otherwise = ScopeNode(listOf(StatementNode(NoOperationNode()))),
+                    ))
+                ))
             ))
         ))
 
@@ -604,13 +602,15 @@ class ParserTest {
                     BinaryOperatorNode(IdentifierNode("i"), IntegerNode("10"), BinaryOperatorType.EQUALS),
                     BinaryOperatorType.AND,
                 ),
-                body = ScopeNode(listOf(StatementNode(NoOperationNode())))
-            )),
-            StatementNode(ElseNode(IfNode(
-                condition = BinaryOperatorNode(
-                    IdentifierNode("i"), IntegerNode("0"), BinaryOperatorType.EQUALS),
                 body = ScopeNode(listOf(StatementNode(NoOperationNode()))),
-            )))
+                otherwise = ScopeNode(listOf(
+                    StatementNode(IfNode(
+                        condition = BinaryOperatorNode(IdentifierNode("i"), IntegerNode("0"), BinaryOperatorType.EQUALS),
+                        body = ScopeNode(listOf(StatementNode(NoOperationNode()))),
+                        otherwise = null,
+                    ))
+                ))
+            ))
         ))
 
         val got = comparator.compare(root1, root2)
@@ -875,7 +875,9 @@ class ParserTest {
         val expected = ProgramNode(listOf(
             StatementNode(IfNode(
                 condition = BooleanTrueNode(),
-                body = ScopeNode(listOf()) // TODO: 'listOf()' or 'listOf(StatementNode(NoOperationNode()))'?
+                // TODO: 'listOf()' or 'listOf(StatementNode(NoOperationNode()))'?
+                body = ScopeNode(listOf(StatementNode(NoOperationNode()))),
+                otherwise = null,
             ))
         ))
 
@@ -898,7 +900,8 @@ class ParserTest {
                         identifier = IdentifierNode("callback"),
                         arguments = listOf(IntegerNode("1"), IntegerNode("2"), IntegerNode("3"))
                     ))
-                ))
+                )),
+                otherwise = null,
             ))
         ))
 
@@ -928,13 +931,11 @@ class ParserTest {
                 body = ScopeNode(listOf(
                     StatementNode(DefinitionNode(IdentifierNode("value"), IntegerNode("10"))),
                     StatementNode(FunctionCallNode(IdentifierNode("print"), listOf(IdentifierNode("value"))))
-                ))
-            )),
-            StatementNode(ElseNode(
-                ScopeNode(listOf(
+                )),
+                otherwise = ScopeNode(listOf(
                     StatementNode(DefinitionNode(IdentifierNode("value"), StringNode("\"string\"")))
                 ))
-            )),
+            ))
         ))
 
         val root = parser.parse(tokens)
@@ -957,13 +958,11 @@ class ParserTest {
                 condition = BooleanFalseNode(),
                 body = ScopeNode(listOf(
                     StatementNode(FunctionCallNode(IdentifierNode("print"), listOf(IntegerNode("10"))))
+                )),
+                otherwise = ScopeNode(listOf(
+                    StatementNode(FunctionCallNode(IdentifierNode("print"), listOf(IntegerNode("20"))))
                 ))
-            )),
-            StatementNode(ElseNode(
-                ScopeNode(listOf(
-                    StatementNode(FunctionCallNode(IdentifierNode("print"), listOf(IntegerNode("20")))).
-                ))
-            )),
+            ))
         ))
 
         val root = parser.parse(tokens)
@@ -987,18 +986,17 @@ class ParserTest {
                 condition = BooleanFalseNode(),
                 body = ScopeNode(listOf(
                     StatementNode(FunctionCallNode(IdentifierNode("print"), listOf(IntegerNode("10"))))
-                ))
-            )),
-            StatementNode(ElseNode(
-                ScopeNode(listOf(
+                )),
+                otherwise = ScopeNode(listOf(
                     StatementNode(IfNode(
                         condition = BooleanTrueNode(),
                         body = ScopeNode(listOf(
                             StatementNode(FunctionCallNode(IdentifierNode("print"), listOf(IntegerNode("20"))))
-                        ))
+                        )),
+                        otherwise = null
                     ))
                 ))
-            )),
+            ))
         ))
 
         val root = parser.parse(tokens)
@@ -1021,18 +1019,17 @@ class ParserTest {
                 condition = BooleanFalseNode(),
                 body = ScopeNode(listOf(
                     StatementNode(FunctionCallNode(IdentifierNode("print"), listOf(IntegerNode("10"))))
-                ))
-            )),
-            StatementNode(ElseNode(
-                ScopeNode(listOf(
+                )),
+                otherwise = ScopeNode(listOf(
                     StatementNode(IfNode(
                         condition = BooleanTrueNode(),
                         body = ScopeNode(listOf(
                             StatementNode(FunctionCallNode(IdentifierNode("print"), listOf(IntegerNode("20"))))
-                        ))
+                        )),
+                        otherwise = null,
                     ))
                 ))
-            )),
+            ))
         ))
 
         val root = parser.parse(tokens)
@@ -1044,9 +1041,9 @@ class ParserTest {
     @Test
     fun testIfElseIfElseConstructDefinition() {
         val program = """
-            if (false) { print(1) }
-            else if (false) { print(2) }
-            else { print(3) }
+            if (false) { print(1); }
+            else if (false) { print(2); }
+            else { print(3); }
         """.trimIndent()
 
         val tokens = lexer.tokenize(program)
@@ -1056,83 +1053,476 @@ class ParserTest {
                 condition = BooleanFalseNode(),
                 body = ScopeNode(listOf(
                     StatementNode(FunctionCallNode(IdentifierNode("print"), listOf(IntegerNode("1"))))
+                )),
+                otherwise = ScopeNode(listOf(
+                    StatementNode(IfNode(
+                        condition = BooleanFalseNode(),
+                        body = ScopeNode(listOf(
+                            StatementNode(FunctionCallNode(IdentifierNode("print"), listOf(IntegerNode("2"))))
+                        )),
+                        otherwise = ScopeNode(listOf(
+                            StatementNode(FunctionCallNode(IdentifierNode("print"), listOf(IntegerNode("3"))))
+                        ))
+                    ))
                 ))
             ))
         ))
+
+        val root = parser.parse(tokens)
+
+        val got = comparator.compare(expected, root)
+        assertEquals(true, got)
     }
 
     @Test
     fun testIfElseIfElseConstructDefinitionWithNoCurlyBraces() {
+        val program = """
+            if (false);
+            else if (false) print(2);
+            else print(3);
+        """.trimIndent()
 
+        val tokens = lexer.tokenize(program)
+
+        val expected = ProgramNode(listOf(
+            StatementNode(IfNode(
+                condition = BooleanFalseNode(),
+                body = ScopeNode(listOf(StatementNode(NoOperationNode()))),
+                otherwise = ScopeNode(listOf(
+                    StatementNode(IfNode(
+                        condition = BooleanFalseNode(),
+                        body = ScopeNode(listOf(
+                            StatementNode(FunctionCallNode(IdentifierNode("print"), listOf(IntegerNode("2"))))
+                        )),
+                        otherwise = ScopeNode(listOf(
+                            StatementNode(FunctionCallNode(IdentifierNode("print"), listOf(IntegerNode("3"))))
+                        )),
+                    ))
+                ))
+            ))
+        ))
+
+        val root = parser.parse(tokens)
+
+        val got = comparator.compare(expected, root)
+        assertEquals(true, got)
     }
 
     @Test
     fun testForLoopDefinition() {
+        val program = """
+            for (var i = 0; i < 10; i = i + 1) {}
+        """.trimIndent()
 
+        val tokens = lexer.tokenize(program)
+
+        val expected = ProgramNode(listOf(
+            StatementNode(ForLoopNode(
+                enteringStatement = StatementNode(DefinitionNode(IdentifierNode("i"), IntegerNode("0"))),
+                condition = BinaryOperatorNode(IdentifierNode("i"), IntegerNode("10"), BinaryOperatorType.LESS),
+                postIterationExpression = AssignmentNode(
+                    IdentifierNode("i"),
+                    BinaryOperatorNode(IdentifierNode("i"), IntegerNode("1"), BinaryOperatorType.PLUS)
+                ),
+                body = ScopeNode(listOf(StatementNode(NoOperationNode()))),
+            ))
+        ))
+
+        val root = parser.parse(tokens)
+
+        val got = comparator.compare(expected, root)
+        assertEquals(true, got)
     }
 
     @Test
     fun testForLoopDefinitionWithEmptyBlocks() {
+        val program = """
+            for (;;) {}
+        """.trimIndent()
 
+        val tokens = lexer.tokenize(program)
+
+        val expected = ProgramNode(listOf(
+            StatementNode(ForLoopNode(
+                enteringStatement = StatementNode(NoOperationNode()),
+                condition = BooleanTrueNode(), // emptiness implies true expression
+                postIterationExpression = NoOperationNode(),
+                body = ScopeNode(listOf(StatementNode(NoOperationNode()))),
+            ))
+        ))
+
+        val root = parser.parse(tokens)
+
+        val got = comparator.compare(expected, root)
+        assertEquals(true, got)
     }
 
     @Test
     fun testForLoopDefinitionWithNoVariableDefinition() {
+        val program = """
+            for (;i<10;i=i+1) {}
+        """.trimIndent()
 
+        val tokens = lexer.tokenize(program)
+
+        val expected = ProgramNode(listOf(
+            StatementNode(ForLoopNode(
+                enteringStatement = StatementNode(NoOperationNode()),
+                condition = BinaryOperatorNode(IdentifierNode("i"), IntegerNode("10"), BinaryOperatorType.LESS),
+                postIterationExpression = AssignmentNode(
+                    IdentifierNode("i"),
+                    BinaryOperatorNode(IdentifierNode("i"), IntegerNode("1"), BinaryOperatorType.PLUS)
+                ),
+                body = ScopeNode(listOf(StatementNode(NoOperationNode()))),
+            ))
+        ))
+
+        val root = parser.parse(tokens)
+
+        val got = comparator.compare(expected, root)
+        assertEquals(true, got)
     }
 
     @Test
     fun testForLoopDefinitionWithNoPostIterationExpression() {
+        val program = """
+            for (var my_var = 0; my_var < N;) {}
+        """.trimIndent()
 
+        val tokens = lexer.tokenize(program)
+
+        val expected = ProgramNode(listOf(
+            StatementNode(ForLoopNode(
+                enteringStatement = StatementNode(DefinitionNode(IdentifierNode("my_var"), IntegerNode("0"))),
+                condition = BinaryOperatorNode(IdentifierNode("my_var"), IdentifierNode("N"), BinaryOperatorType.LESS),
+                postIterationExpression = NoOperationNode(),
+                body = ScopeNode(listOf(StatementNode(NoOperationNode()))),
+            ))
+        ))
+
+        val root = parser.parse(tokens)
+
+        val got = comparator.compare(expected, root)
+        assertEquals(true, got)
     }
 
     @Test
     fun testForLoopDefinitionWithNoConditionExpression() {
+        val program = """
+            for (var my_var = 0;;my_var = 2 * my_var) {}
+        """.trimIndent()
 
+        val tokens = lexer.tokenize(program)
+
+        val expected = ProgramNode(listOf(
+            StatementNode(ForLoopNode(
+                enteringStatement = StatementNode(DefinitionNode(IdentifierNode("my_var"), IntegerNode("0"))),
+                condition = BooleanTrueNode(),
+                postIterationExpression = AssignmentNode(
+                    IdentifierNode("my_var"),
+                    BinaryOperatorNode(IntegerNode("2"), IdentifierNode("my_var"), BinaryOperatorType.MULTIPLY)
+                ),
+                body = ScopeNode(listOf(StatementNode(NoOperationNode()))),
+            ))
+        ))
+
+        val root = parser.parse(tokens)
+
+        val got = comparator.compare(expected, root)
+        assertEquals(true, got)
+    }
+
+    @Test
+    fun testForLoopDefinitionNoCurlyBraces() {
+        val program = """
+            for (var v = 0; !(v == 10); v = v + 1);
+        """.trimIndent()
+
+        val tokens = lexer.tokenize(program)
+
+        // TODO: add support of '!=' operator
+        val expected = ProgramNode(listOf(
+            StatementNode(ForLoopNode(
+                enteringStatement = StatementNode(DefinitionNode(IdentifierNode("v"), IntegerNode("0"))),
+                condition = UnaryOperatorNode(
+                    BinaryOperatorNode(IdentifierNode("v"), IntegerNode("10"), BinaryOperatorType.EQUALS),
+                    UnaryOperatorType.NOT,
+                ),
+                postIterationExpression = AssignmentNode(
+                    IdentifierNode("i"),
+                    BinaryOperatorNode(IdentifierNode("i"), IntegerNode("1"), BinaryOperatorType.PLUS)
+                ),
+                body = ScopeNode(listOf(StatementNode(NoOperationNode()))),
+            ))
+        ))
+
+        val root = parser.parse(tokens)
+
+        val got = comparator.compare(expected, root)
+        assertEquals(true, got)
     }
 
     @Test
     fun testWhileLoopDefinition() {
+        val program = """
+            while(i < 10) {}
+        """.trimIndent()
 
+        val tokens = lexer.tokenize(program)
+
+        val expected = ProgramNode(listOf(
+            StatementNode(WhileLoopNode(
+                condition = BinaryOperatorNode(IdentifierNode("i"), IntegerNode("10"), BinaryOperatorType.LESS),
+                body = ScopeNode(listOf(
+                    StatementNode(NoOperationNode())
+                ))
+            ))
+        ))
+
+        val root = parser.parse(tokens)
+
+        val got = comparator.compare(expected, root)
+        assertEquals(true, got)
+    }
+
+    @Test
+    fun testWhileLoopDefinitionNoCurlyBraces() {
+        val program = """
+            while(i < 10);
+        """.trimIndent()
+
+        val tokens = lexer.tokenize(program)
+
+        val expected = ProgramNode(listOf(
+            StatementNode(WhileLoopNode(
+                condition = BinaryOperatorNode(IdentifierNode("i"), IntegerNode("10"), BinaryOperatorType.LESS),
+                body = ScopeNode(listOf(
+                    StatementNode(NoOperationNode())
+                ))
+            ))
+        ))
+
+        val root = parser.parse(tokens)
+
+        val got = comparator.compare(expected, root)
+        assertEquals(true, got)
     }
 
     @Test
     fun testFunctionDefinitionWithNoArguments() {
+        val program = """
+            function my_function() {
+                var i = 0;
+                print(i);
+                return i;
+            }
+        """.trimIndent()
 
+        val tokens = lexer.tokenize(program)
+
+        val expected = ProgramNode(listOf(
+            StatementNode(FunctionDefinitionNode(
+                identifier = IdentifierNode("my_function"),
+                arguments = listOf(),
+                body = ScopeNode(listOf(
+                    StatementNode(DefinitionNode(IdentifierNode("i"), IntegerNode("0"))),
+                    StatementNode(FunctionCallNode(IdentifierNode("print"), listOf(IdentifierNode("i")))),
+                    StatementNode(ReturnNode(IdentifierNode("i"))),
+                ))
+            ))
+        ))
+
+        val root = parser.parse(tokens)
+
+        val got = comparator.compare(expected, root)
+        assertEquals(true, got)
     }
 
     @Test
     fun testFunctionDefinitionWithSingleArgument() {
+        val program = """
+            function my_function(val) {
+                print(val);
+                return val * 2;
+            }
+        """.trimIndent()
 
+        val tokens = lexer.tokenize(program)
+
+        val expected = ProgramNode(listOf(
+            StatementNode(FunctionDefinitionNode(
+                identifier = IdentifierNode("my_function"),
+                arguments = listOf(IdentifierNode("val")),
+                body = ScopeNode(listOf(
+                    StatementNode(FunctionCallNode(IdentifierNode("print"), listOf(IdentifierNode("val")))),
+                    StatementNode(ReturnNode(
+                        BinaryOperatorNode(
+                            IdentifierNode("val"),
+                            IntegerNode("2"),
+                            BinaryOperatorType.MULTIPLY,
+                        )
+                    )),
+                ))
+            ))
+        ))
+
+        val root = parser.parse(tokens)
+
+        val got = comparator.compare(expected, root)
+        assertEquals(true, got)
     }
 
     @Test
     fun testFunctionDefinitionWithThreeArguments() {
+        val program = """
+            function my_func(val1, val2, val3) {
+                return val1 + val2 + val3;
+            }
+        """.trimIndent()
 
+        val tokens = lexer.tokenize(program)
+
+        val expected = ProgramNode(listOf(
+            StatementNode(FunctionDefinitionNode(
+                identifier = IdentifierNode("my_function"),
+                arguments = listOf(IdentifierNode("val1"), IdentifierNode("val2"), IdentifierNode("val3")),
+                body = ScopeNode(listOf(
+                    StatementNode(ReturnNode(
+                        BinaryOperatorNode(
+                            IdentifierNode("val1"),
+                            BinaryOperatorNode(
+                                IdentifierNode("val2"),
+                                IdentifierNode("val3"),
+                                BinaryOperatorType.PLUS
+                            ),
+                            BinaryOperatorType.PLUS,
+                        )
+                    )),
+                ))
+            ))
+        ))
+
+        val root = parser.parse(tokens)
+
+        val got = comparator.compare(expected, root)
+        assertEquals(true, got)
     }
 
     @Test
     fun testFunctionDefinitionInsideAnotherFunction() {
+        val program = """
+            function outer() {
+                function inner(val1) {
+                    print(val1);
+                }
+                
+                inner(10);
+            }
+        """.trimIndent()
 
+        val tokens = lexer.tokenize(program)
+
+        val expected = ProgramNode(listOf(
+            StatementNode(FunctionDefinitionNode(
+                identifier = IdentifierNode("outer"),
+                arguments = listOf(),
+                body = ScopeNode(listOf(
+                    StatementNode(FunctionDefinitionNode(
+                        identifier = IdentifierNode("inner"),
+                        arguments = listOf(IdentifierNode("val1")),
+                        body = ScopeNode(listOf(
+                            StatementNode(FunctionCallNode(IdentifierNode("print"), listOf(IdentifierNode("val1"))))
+                        ))
+                    )),
+                    StatementNode(FunctionCallNode(IdentifierNode("inner"), listOf(IntegerNode("10")))),
+                ))
+            ))
+        ))
+
+        val root = parser.parse(tokens)
+
+        val got = comparator.compare(expected, root)
+        assertEquals(true, got)
     }
 
     @Test
     fun testFunctionCallWithNoArguments() {
+        val program = """
+            my_function();
+        """.trimIndent()
 
+        val tokens = lexer.tokenize(program)
+
+        val expected = ProgramNode(listOf(
+            StatementNode(FunctionCallNode(IdentifierNode("my_function"), listOf()))
+        ))
+
+        val root = parser.parse(tokens)
+
+        val got = comparator.compare(expected, root)
+        assertEquals(true, got)
     }
 
     @Test
     fun testFunctionCallWithSingleArgument() {
+        val program = """
+            my_function_single_arg(1000);
+        """.trimIndent()
 
+        val tokens = lexer.tokenize(program)
+
+        val expected = ProgramNode(listOf(
+            StatementNode(FunctionCallNode(IdentifierNode("my_function"), listOf(
+                IntegerNode("1000")
+            )))
+        ))
+
+        val root = parser.parse(tokens)
+
+        val got = comparator.compare(expected, root)
+        assertEquals(true, got)
     }
 
     @Test
     fun testFunctionCallWithThreeArguments() {
+        val program = """
+            my_func(123, "str", false);
+        """.trimIndent()
 
+        val tokens = lexer.tokenize(program)
+
+        val expected = ProgramNode(listOf(
+            StatementNode(FunctionCallNode(IdentifierNode("my_function"), listOf(
+                IntegerNode("123"), StringNode("\"str\""), BooleanFalseNode()
+            )))
+        ))
+
+        val root = parser.parse(tokens)
+
+        val got = comparator.compare(expected, root)
+        assertEquals(true, got)
     }
 
     @Test
     fun testAssignmentToFunctionCallResult() {
+        val program = """
+            var variable = my_function(1, 2, 3);
+        """.trimIndent()
 
+        val tokens = lexer.tokenize(program)
+
+        val expected = ProgramNode(listOf(
+            StatementNode(DefinitionNode(
+                IdentifierNode("variable"),
+                FunctionCallNode(IdentifierNode("my_function"), listOf(
+                    IntegerNode("1"), IntegerNode("2"), IntegerNode("3")
+                ))
+            ))
+        ))
+
+        val root = parser.parse(tokens)
+
+        val got = comparator.compare(expected, root)
+        assertEquals(true, got)
     }
 }

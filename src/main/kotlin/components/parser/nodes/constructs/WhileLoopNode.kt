@@ -5,7 +5,7 @@ import components.parser.visitors.Visitor
 
 class WhileLoopNode(
     val condition: AstNode,
-    val body: AstNode,
+    val body: ScopeNode,
 ) : AstNode {
     override fun accept(visitor: Visitor) {
         visitor.visit(this)

@@ -27,16 +27,17 @@ interface Visitor {
     fun visit(node: BooleanFalseNode)
 
     // constructs
-    fun visit(node: FunctionNode)
+    fun visit(node: FunctionDefinitionNode)
     fun visit(node: IfNode)
-    fun visit(node: ElseNode)
     fun visit(node: ForLoopNode)
     fun visit(node: WhileLoopNode)
     fun visit(node: ScopeNode)
     fun visit(node: DeclarationNode)
     fun visit(node: DefinitionNode)
     fun visit(node: FunctionCallNode)
+    fun visit(node: ReturnNode)
 
+    // auxiliary
     fun visit(node: EndNode)
     fun visit(node: InvalidNode)
     fun visit(node: NoOperationNode)

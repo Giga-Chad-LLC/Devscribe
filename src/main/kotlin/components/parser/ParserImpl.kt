@@ -6,7 +6,7 @@ import components.parser.nodes.AstNode
 import components.parser.nodes.IdentifierNode
 import components.parser.nodes.ProgramNode
 import components.parser.nodes.StatementNode
-import components.parser.nodes.constructs.FunctionNode
+import components.parser.nodes.constructs.FunctionDefinitionNode
 import components.parser.nodes.constructs.ScopeNode
 
 
@@ -98,7 +98,7 @@ class ParserImpl : Parser {
 
         val scope = parseScope(iterator, statements)
         statements.add(StatementNode(
-                FunctionNode(IdentifierNode(identifier), arguments, scope)
+                FunctionDefinitionNode(IdentifierNode(identifier), arguments, scope)
             ))
     }
 

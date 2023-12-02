@@ -5,7 +5,8 @@ import components.parser.visitors.Visitor
 
 class IfNode(
     val condition: AstNode,
-    val body: AstNode,
+    val body: ScopeNode,
+    val otherwise: ScopeNode?,
     ) : AstNode {
     override fun accept(visitor: Visitor) {
         visitor.visit(this)
