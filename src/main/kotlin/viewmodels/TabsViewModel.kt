@@ -84,6 +84,10 @@ class TabsViewModel(
         }
     }
 
+    fun unpinAll() {
+        tabsModel.pinnedFiles.clear()
+        activeFile = null
+    }
 
     /*fun getActiveFile(): PinnedFileModel? {
         for (fileModel in tabsModel.pinnedFiles) {

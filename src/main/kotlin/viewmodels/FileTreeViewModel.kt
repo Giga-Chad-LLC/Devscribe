@@ -1,8 +1,8 @@
 package viewmodels
 
+import components.vfs.nodes.VFSDirectory
 import components.vfs.nodes.VFSFile
 import models.FileTreeModel
-import models.PinnedFileModel
 
 class FileTreeViewModel(private val fileTreeMode: FileTreeModel, private val tabsViewModel: TabsViewModel) {
     val nodes: List<FileTreeModel.NodeModel>
@@ -17,4 +17,6 @@ class FileTreeViewModel(private val fileTreeMode: FileTreeModel, private val tab
             is FileTreeModel.NodeType.File -> tabsViewModel.pin(node.file as VFSFile)
         }
     }
+
+    fun setRoot(root: VFSDirectory) = fileTreeMode.setRoot(root)
 }

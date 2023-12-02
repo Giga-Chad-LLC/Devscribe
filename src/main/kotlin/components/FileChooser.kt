@@ -19,7 +19,7 @@ object FileChooser {
     private suspend fun chooseDirectoryNative() = withContext(Dispatchers.IO) {
         val pathPointer = MemoryUtil.memAllocPointer(1)
         try {
-            return@withContext when (val code = NativeFileDialog.NFD_PickFolder("C:\\Users\\dmitriiart\\IdeaProjects\\Devscribe", pathPointer)) { // Environment.userHome.toString()
+            return@withContext when (val code = NativeFileDialog.NFD_PickFolder(System.getProperty("user.home"), pathPointer)) { // Environment.userHome.toString() || "C:\\Users\\dmitriiart\\IdeaProjects\\Devscribe"
                 NativeFileDialog.NFD_OKAY -> {
                     val path = pathPointer.stringUTF8
                     NativeFileDialog.nNFD_Free(pathPointer[0])
