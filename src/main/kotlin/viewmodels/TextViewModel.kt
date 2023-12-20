@@ -28,12 +28,16 @@ class TextViewModel(coroutineScope: CoroutineScope, private var activeFileModel:
     )
 
     /**
-     * Updates current active file model if provided pinned file model is not the same as current file
+     * Updates current active file model if provided pinned file model is not the same as current file.
+     *
+     * Returns true if a file updates successfully, otherwise false.
      */
-    fun updateActiveFileModel(other: PinnedFileModel) {
+    fun updateActiveFileModel(other: PinnedFileModel): Boolean {
         if (activeFileModel.id != other.id) {
             activeFileModel = other
+            return true
         }
+        return false
     }
 
     companion object {
