@@ -296,11 +296,11 @@ private fun Modifier.handleKeyboardInput(editorState: EditorState): Modifier {
                 }
                 else if (keyEvent.type == KeyEventType.KeyDown && !keyEvent.isCtrlPressed && keyEvent.key == Key.Tab) {
                     // writing tabulation symbol on tab press
-                    textViewModel.symbol(keyEvent.utf16CodePoint.toChar())
+                    textViewModel.insert("    ")
                     consumed = true
                 }
                 else if (keyEvent.type == KeyEventType.KeyDown && isPrintableSymbolAction(keyEvent)) {
-                    textViewModel.symbol(keyEvent.utf16CodePoint.toChar())
+                    textViewModel.insert(keyEvent.utf16CodePoint.toChar())
                     consumed = true
                 }
 

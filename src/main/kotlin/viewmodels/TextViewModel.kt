@@ -100,8 +100,13 @@ class TextViewModel(coroutineScope: CoroutineScope, private var activeFileModel:
         debounceHandler.run(activeFileModel)
     }
 
-    fun symbol(ch: Char) {
+    fun insert(ch: Char) {
         activeFileModel.textModel.insert(ch)
+        debounceHandler.run(activeFileModel)
+    }
+
+    fun insert(str: String) {
+        activeFileModel.textModel.insert(str)
         debounceHandler.run(activeFileModel)
     }
 
