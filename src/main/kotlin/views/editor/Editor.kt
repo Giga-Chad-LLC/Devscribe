@@ -271,18 +271,6 @@ private fun Modifier.handleKeyboardInput(editorState: EditorState, clipboardMana
                     textViewModel.newline()
                     consumed = true
                 }
-                else if (keyEvent.type == KeyEventType.KeyDown && keyEvent.isCtrlPressed && keyEvent.key == Key.C) {
-                    // copy selected text into clipboard
-                    editorState.copySelection(clipboardManager)
-                }
-                else if (keyEvent.type == KeyEventType.KeyDown && keyEvent.isCtrlPressed && keyEvent.key == Key.V) {
-                    // insert text from clipboard
-                    editorState.pasteTextFromClipboard(clipboardManager)
-                }
-                else if (keyEvent.type == KeyEventType.KeyDown && keyEvent.isCtrlPressed && keyEvent.key == Key.X) {
-                    // clip selected text into clipboard and remove it
-                    // TODO
-                }
                 else if (keyEvent.type == KeyEventType.KeyDown && keyEvent.key == Key.DirectionUp) {
                     if (keyEvent.isCtrlPressed) {
                         // CTRL + ↑ scrolls the canvas by 1 line up
@@ -362,6 +350,19 @@ private fun Modifier.handleKeyboardInput(editorState: EditorState, clipboardMana
                 else if (keyEvent.type == KeyEventType.KeyDown && keyEvent.key == Key.Delete) {
                     textViewModel.delete()
                     consumed = true
+                }
+                else if (keyEvent.type == KeyEventType.KeyDown && keyEvent.isCtrlPressed && keyEvent.key == Key.C) {
+                    // copy selected text into clipboard
+                    editorState.copySelection(clipboardManager)
+                }
+                else if (keyEvent.type == KeyEventType.KeyDown && keyEvent.isCtrlPressed && keyEvent.key == Key.V) {
+                    // insert text from clipboard
+                    editorState.pasteTextFromClipboard(clipboardManager)
+                }
+                else if (keyEvent.type == KeyEventType.KeyDown && keyEvent.isCtrlPressed && keyEvent.key == Key.X) {
+                    // clip selected text into clipboard and remove it
+                    editorState.copySelection(clipboardManager)
+                    editorState.deleteSelection()
                 }
                 else if (keyEvent.type == KeyEventType.KeyDown && keyEvent.isCtrlPressed && keyEvent.key == Key.F) {
                     editorState.isSearchBarVisible.value = true
