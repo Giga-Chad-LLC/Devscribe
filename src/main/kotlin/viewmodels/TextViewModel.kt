@@ -6,11 +6,16 @@ import components.KeyboardEventDispatcher.KeyboardAction
 import components.vfs.commands.SaveFileOnDiskCommand
 import components.vfs.commands.SyncFileWithFrontendCommand
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import models.PinnedFileModel
 import models.text.Cursor
 import models.text.TextModel
 
-class TextViewModel(coroutineScope: CoroutineScope, private var activeFileModel: PinnedFileModel) {
+class TextViewModel(
+    private val coroutineScope: CoroutineScope,
+    private var activeFileModel: PinnedFileModel
+) {
     val textModel: TextModel
         get() {
             return activeFileModel.textModel
@@ -24,7 +29,7 @@ class TextViewModel(coroutineScope: CoroutineScope, private var activeFileModel:
     private val debounceHandler = DebounceHandler(
         300,
         coroutineScope,
-        TextViewModel::syncModelWithVFS
+        this::syncModelWithVFS
     )
 
     /**
@@ -36,35 +41,38 @@ class TextViewModel(coroutineScope: CoroutineScope, private var activeFileModel:
         }
     }
 
-    companion object {
-        private fun syncModelWithVFS(fileToSyncWith: PinnedFileModel?) {
-            if (fileToSyncWith == null) return
+    private fun syncModelWithVFS(fileToSyncWith: PinnedFileModel?) {
+        if (fileToSyncWith == null) return
 
-            println("Send local text model to VFS")
-            val vfs = fileToSyncWith.virtualFile.getVirtualFileSystem()
+        println("Send local text model to VFS")
+        val vfs = fileToSyncWith.virtualFile.getVirtualFileSystem()
 
-            vfs.post(
-                SyncFileWithFrontendCommand(
-                    vfs,
-                    fileToSyncWith.virtualFile,
-                    fileToSyncWith.textModel.text
-                ) {
+        vfs.post(
+            SyncFileWithFrontendCommand(
+                vfs,
+                fileToSyncWith.virtualFile,
+                fileToSyncWith.textModel.text
+            ) {
+                coroutineScope.launch {
                     fileToSyncWith.isSaved = fileToSyncWith.virtualFile.isSaved
                 }
-            )
-        }
-
-        private fun saveFileOnDisk(fileToSave: PinnedFileModel?) {
-            if (fileToSave == null) return
-
-            println("Save file to the disk")
-            val vfs = fileToSave.virtualFile.getVirtualFileSystem()
-
-            vfs.post(SaveFileOnDiskCommand(fileToSave.virtualFile) {
-                fileToSave.isSaved = fileToSave.virtualFile.isSaved
-            })
-        }
+            }
+        )
     }
+
+    private fun saveFileOnDisk(fileToSave: PinnedFileModel?) {
+        if (fileToSave == null) return
+
+        println("Save file to the disk")
+        val vfs = fileToSave.virtualFile.getVirtualFileSystem()
+
+        vfs.post(SaveFileOnDiskCommand(fileToSave.virtualFile) {
+            coroutineScope.launch {
+                fileToSave.isSaved = fileToSave.virtualFile.isSaved
+            }
+        })
+    }
+
 
     fun backspace() {
         activeFileModel.textModel.backspace()
@@ -102,7 +110,7 @@ class TextViewModel(coroutineScope: CoroutineScope, private var activeFileModel:
         debounceHandler.run(activeFileModel)
     }
 
-    fun symbol(ch: Char) {
+    fun symbol(ch: Char, ) {
         activeFileModel.textModel.insert(ch)
         debounceHandler.run(activeFileModel)
     }
