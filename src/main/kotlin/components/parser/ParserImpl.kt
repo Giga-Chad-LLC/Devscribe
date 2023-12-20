@@ -12,26 +12,24 @@ import components.parser.nodes.constructs.ScopeNode
 
 
 class ParserImpl : Parser {
-    private data class Iterator(
-        var currentIndex: Int,
-        val statementTokens: MutableList<Token>
+    private data class Context(
+        var currentIndex: Int
     )
 
     override fun parse(tokens: List<Token>): AstNode {
         val statements = mutableListOf<StatementNode>()
 
-        val iterator = Iterator(0, mutableListOf())
+        val context = Context(0)
 
-        while (iterator.currentIndex < tokens.size) {
-            val token = tokens[iterator.currentIndex]
+        while (context.currentIndex < tokens.size) {
+            val token = tokens[context.currentIndex]
 
             when (token.type) {
-                SEMICOLON -> parseSemicolon(iterator, statements)
-                FUNCTION -> parseFunctionDefinition(iterator, statements, tokens)
-                else -> iterator.statementTokens.add(token)
-
+                VAR -> parseFunctionDefinitionOrDeclaration(context, tokens)
+                else -> {}
                 /*
-                VAR ->
+                FUNCTION -> parseFunctionDefinition(iterator, statements, tokens)
+                SEMICOLON -> parseSemicolon(iterator, statements)
                 FUNCTION -> TODO()
                 IF -> TODO()
                 ELSE -> TODO()
@@ -68,7 +66,28 @@ class ParserImpl : Parser {
         return ProgramNode(statements)
     }
 
-    private fun parseSemicolon(iterator: Iterator, statements: MutableList<StatementNode>) {
+    private fun parseFunctionDefinitionOrDeclaration(context: Context, tokens: List<Token>) {
+        val varIndex = context.currentIndex
+        val nameIndex = context.currentIndex + 1
+        val semicolonIndex = context.currentIndex + 2
+
+        require(semicolonIndex <  tokens.size)
+
+        requireTypeAt(varIndex, Token.TokenType.VAR, tokens)
+        requireTypeAt(nameIndex, Token.TokenType.IDENTIFIER, tokens)
+
+        // var name [= value];
+        if (tokens[semicolonIndex].type == Token.TokenType.SEMICOLON) {
+            // variable declaration
+
+        }
+        else {
+            // variable definition
+        }
+
+    }
+
+    /*private fun parseSemicolon(iterator: Iterator, statements: MutableList<StatementNode>) {
         statements.add(parseStatement(iterator.statementTokens))
         iterator.statementTokens.clear()
         iterator.currentIndex++
@@ -122,7 +141,7 @@ class ParserImpl : Parser {
             shift++
         }
         require(index + shift < tokens.size && tokens[index + shift].type == CLOSE_PAREN)
-    }
+    }*/
 
     private fun requireTypeAt(index: Int, type: Token.TokenType, tokens: List<Token>) {
         require(index < tokens.size && tokens[index].type == type)
