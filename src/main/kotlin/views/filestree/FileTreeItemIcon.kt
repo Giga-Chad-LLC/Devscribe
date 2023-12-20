@@ -35,7 +35,10 @@ fun FileTreeItemIcon(modifier: Modifier, node: FileTreeModel.NodeModel) {
 
             is FileTreeModel.NodeType.File -> when (type.extension) {
                 // TODO: add some stylish to the icons
-                "txt" -> Icon(Icons.Default.Description, contentDescription = null, tint = Color(0xFF87939A))
+                "txt" -> Icon(Icons.Default.Description, contentDescription = "txt file", tint = Color(0xFF87939A))
+                "js" -> Icon(Icons.Default.Code, contentDescription = "JavaScript file", tint = Color(0xFF87939A))
+                "php" -> Icon(Icons.Default.Code, contentDescription = "PHP file", tint = Color(0xFF87939A))
+                "cpp" -> Icon(Icons.Default.Code, contentDescription = "C++ file", tint = Color(0xFF87939A))
                 else -> Icon(Icons.Default.QuestionMark, contentDescription = null, tint = Color(0xFF87939A))
             }
         }
