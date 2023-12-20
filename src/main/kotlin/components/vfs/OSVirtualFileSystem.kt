@@ -58,6 +58,18 @@ class OSVirtualFileSystem : VirtualFileSystem {
         projectPath = rootDir
     }
 
+    override fun createChildFile(parent: VFSDirectory, childFilename: String): VFSNode {
+        val virtualFile = VFSFile(this, childFilename, parent, getNextNodeId(), FileTime.from(Instant.MIN))
+        parent.addChildNode(virtualFile)
+        return virtualFile
+    }
+
+    override fun createChildDirectory(parent: VFSDirectory, childDirname: String): VFSNode {
+        val virtualDirectory = VFSDirectory(this, childDirname, parent, getNextNodeId(), FileTime.from(Instant.MIN))
+        parent.addChildNode(virtualDirectory)
+        return virtualDirectory
+    }
+
     override fun renameFile(file: VFSNode, renameTo: String) {
         file.filename = renameTo
     }

@@ -1,10 +1,10 @@
 package viewmodels
 
 import components.vfs.VirtualFileSystem
-import components.vfs.commands.RenameFileCommand
+import components.vfs.commands.CreateNodeCommand
+import components.vfs.commands.RenameNodeCommand
 import components.vfs.nodes.VFSDirectory
 import components.vfs.nodes.VFSFile
-import components.vfs.nodes.VFSNode
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import models.FileTreeModel
@@ -40,7 +40,7 @@ class FileTreeViewModel(
 
         println("Rename: ${node.filename} -> $renameTo")
         vfs.post(
-            RenameFileCommand(vfs, node.file, renameTo) {
+            RenameNodeCommand(vfs, node.file, renameTo) {
                 viewScope.launch {
                     fileTreeModel.setFilename(node, node.file.filename)
                     if (node.file.isFile()) {
@@ -54,11 +54,44 @@ class FileTreeViewModel(
         )
     }
 
+    fun addFile(node: FileTreeModel.NodeModel) {
+        val uniqueName = getUniqueNameFromNodeChildren(node, "new-file-")
+        vfs.post(
+            CreateNodeCommand(vfs, node.file as VFSDirectory, uniqueName, true) { virtualFile ->
+                viewScope.launch {
+                    fileTreeModel.addChild(node, virtualFile)
+                }
+            }
+        )
+    }
+
+    fun addFolder(node: FileTreeModel.NodeModel) {
+        val uniqueName = getUniqueNameFromNodeChildren(node, "new-folder-")
+        vfs.post(
+            CreateNodeCommand(vfs, node.file as VFSDirectory, uniqueName, false) { virtualFile ->
+                viewScope.launch {
+                    fileTreeModel.addChild(node, virtualFile)
+                }
+            }
+        )
+    }
+
     private fun isValidFilename(path: String): Boolean {
         // Define a regular expression pattern for a valid filename
         val pattern = Regex("[^\\\\/:*?\"<>|]+")
 
         // Check if the path matches the pattern
         return pattern.matches(path) && path.isNotBlank()
+    }
+
+    private fun getUniqueNameFromNodeChildren(node: FileTreeModel.NodeModel, prefix: String): String {
+        var newFileNumber = 1
+        val childNames = node.getChildrenNames()
+
+        while (childNames.contains(prefix + newFileNumber.toString())) {
+            newFileNumber++
+        }
+
+        return prefix + newFileNumber.toString()
     }
 }

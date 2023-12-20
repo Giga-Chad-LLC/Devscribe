@@ -6,7 +6,7 @@ import components.vfs.nodes.VFSNode
 import java.nio.file.Path
 import kotlin.io.path.exists
 
-class RenameFileCommand(
+class RenameNodeCommand(
     private val vfs: VirtualFileSystem,
     private val virtualFile: VFSNode,
     private val renameTo: String,

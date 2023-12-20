@@ -18,5 +18,7 @@ interface VirtualFileSystem {
     fun getProjectPath(): String?
     fun setProjectPath(rootDir: Path)
 
+    fun createChildFile(parent: VFSDirectory, childFilename: String): VFSNode
+    fun createChildDirectory(parent: VFSDirectory, childDirname: String): VFSNode
     fun renameFile(file: VFSNode, renameTo: String)
 }

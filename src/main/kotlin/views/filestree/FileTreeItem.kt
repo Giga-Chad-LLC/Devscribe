@@ -71,26 +71,38 @@ fun FileTreeItem(
     var isFocusOnMountRequired by remember { mutableStateOf(true) }
     val focusRequester = remember { FocusRequester() }
 
+    val contextMenuCommands = mutableListOf(
+        ContextMenuItem("Rename") {
+            println("Start renaming file")
+            println("Custom right click on ${node.filename} and renameNodeTo $renameNodeTo")
+            isRenaming = true
+            renameNodeTo = node.filename
+        },
+        ContextMenuItem("Delete") {
+            println("Delete file")
+            // TODO
+        }
+    )
+
+    if (node.type is FileTreeModel.NodeType.Folder) {
+        contextMenuCommands.addAll(listOf(
+            ContextMenuItem("Add file") {
+                println("Create file in ${node.filename}")
+                fileTreeViewModel.addFile(node)
+            },
+            ContextMenuItem("Add folder") {
+                println("Create folder in ${node.filename}")
+                fileTreeViewModel.addFolder(node)
+            }
+        ))
+    }
 
     Modifier
         .wrapContentHeight()
 
     CompositionLocalProvider(LocalContextMenuRepresentation provides styledContextMenuRepresentation) {
         ContextMenuArea(
-            items = {
-                listOf(
-                    ContextMenuItem("Rename") {
-                        println("Start renaming file")
-                        println("Custom right click on ${node.filename} and renameNodeTo $renameNodeTo")
-                        isRenaming = true
-                        renameNodeTo = node.filename
-                    },
-                    ContextMenuItem("Delete") {
-                        println("Delete file")
-                        // TODO
-                    }
-                )
-            }
+            items = { contextMenuCommands }
         ) {
             Row(
                 modifier = Modifier
@@ -157,7 +169,6 @@ fun FileTreeItem(
                         value = renameNodeTo,
                         onValueChange = {
                             renameNodeTo = it
-                            println("Rename node to: $renameNodeTo")
                         },
                         textStyle = TextStyle(
                             color = LocalContentColor.current,
