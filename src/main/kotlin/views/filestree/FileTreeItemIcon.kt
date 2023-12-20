@@ -25,6 +25,13 @@ fun FileTreeItemIcon(modifier: Modifier, node: FileTreeModel.NodeModel) {
                     tint = LocalContentColor.current
                 )
             }
+            else {
+                Icon(
+                    Icons.Default.Folder,
+                    contentDescription = null,
+                    tint = LocalContentColor.current
+                )
+            }
 
             is FileTreeModel.NodeType.File -> when (type.extension) {
                 // TODO: add some stylish to the icons
