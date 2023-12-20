@@ -1,8 +1,11 @@
 package components.vfs
 
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import components.vfs.commands.VFSCommand
 import components.vfs.nodes.VFSDirectory
 import components.vfs.nodes.VFSFile
+import components.vfs.nodes.VFSNode
 import java.io.BufferedReader
 import java.io.BufferedWriter
 import java.io.FileNotFoundException
@@ -53,6 +56,10 @@ class OSVirtualFileSystem : VirtualFileSystem {
 
     override fun setProjectPath(rootDir: Path) {
         projectPath = rootDir
+    }
+
+    override fun renameFile(file: VFSNode, renameTo: String) {
+        file.filename = renameTo
     }
 
     private fun indexProject(node: VFSDirectory, dirPath: Path) {

@@ -11,22 +11,24 @@ import models.text.TextModel
 import java.util.*
 
 class PinnedFileModel(
-    val virtualFile: VFSFile
+    virtualFile: VFSFile
 ) {
+    var virtualFile by mutableStateOf(virtualFile)
+    var filename by mutableStateOf(virtualFile.filename)
     var id: UUID = UUID.randomUUID()
 
-    val filename: String
-        get() {
-            val rwlock = GlobalReadWriteLock.getInstance()
-            rwlock.lockRead()
-
-            try {
-                return virtualFile.getFilename()
-            }
-            finally {
-                rwlock.unlockRead()
-            }
-        }
+//    val filename: String
+//        get() {
+//            val rwlock = GlobalReadWriteLock.getInstance()
+//            rwlock.lockRead()
+//
+//            try {
+//                return virtualFile.filename
+//            }
+//            finally {
+//                rwlock.unlockRead()
+//            }
+//        }
     val textModel: TextModel by mutableStateOf(LineArrayTextModel())
 
     override fun toString(): String {

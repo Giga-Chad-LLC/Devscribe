@@ -1,6 +1,8 @@
 package views.filestree
 
 import androidx.compose.foundation.*
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.gestures.onDrag
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -102,6 +104,28 @@ fun FileTreeItem(
                     }
                     .height(height)
                     .fillMaxWidth()
+//                    .pointerInput(Unit) {
+//                        detectDragGestures(
+//                            onDragStart = {_ ->
+//                                println("onDragStart (detect): ${node.filename}")
+//                                isDragging = true
+//                            },
+//                            onDrag = { _, dragAmount ->
+//                                println("onDrag($dragAmount, detect): ${node.filename}")
+//                                val shift = DpOffset(x = dragAmount.x.dp, y = dragAmount.y.dp)
+//                                onDrag(shift)
+//                                dragOffset += dragAmount
+//                            },
+//                            onDragCancel = {
+//                               println("Cancel dragging with detect")
+//                            },
+//                            onDragEnd = {
+//                                println("onDragEnd (detect): ${node.filename}")
+//                                isDragging = false
+//                                dragOffset = Offset.Zero
+//                            }
+//                        )
+//                    }
                     .onDrag(
                         onDragStart = {
                             println("onDragStart: ${node.filename}")
@@ -156,6 +180,10 @@ fun FileTreeItem(
                                 ) {
                                     isRenaming = false
                                     consumed = true
+
+                                    if (keyEvent.key == Key.Enter) {
+                                        fileTreeViewModel.rename(node, String(renameNodeTo.toByteArray()))
+                                    }
                                 }
 
                                 consumed

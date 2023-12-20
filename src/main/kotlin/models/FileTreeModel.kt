@@ -11,18 +11,24 @@ class FileTreeModel {
     var isTraversed by mutableStateOf(false)
 
     fun setRoot(vfsRoot: VFSDirectory) {
-        root = NodeModel(vfsRoot, 0).apply {
+        root = NodeModel(vfsRoot, null, 0).apply {
             toggleExpanded()
         }
         isTraversed = false
     }
 
+    fun setFilename(node: NodeModel, newFilename: String) {
+        isTraversed = false
+        node.filename = newFilename
+        node.parent?.sortChildren()
+    }
 
     inner class NodeModel(
         val file: VFSNode,
+        val parent: NodeModel?,
         val level: Int = 0 // determines the offset inside sidebar
     ) {
-        val filename: String get() = file.getFilename()
+        var filename: String by mutableStateOf(file.filename)
         private var children: List<NodeModel> by mutableStateOf(emptyList())
         private val canExpand: Boolean get() = file.hasChildren()
 
@@ -30,14 +36,14 @@ class FileTreeModel {
             get() = if (file.isDirectory()) {
                 NodeType.Folder(isExpanded = children.isNotEmpty(), canExpand = canExpand)
             } else {
-                NodeType.File(extension = file.getFilename().substringAfterLast(".").lowercase())
+                NodeType.File(extension = file.filename.substringAfterLast(".").lowercase())
             }
 
         fun toggleExpanded() {
             children = if (children.isEmpty() && file.isDirectory()) {
                 (file as VFSDirectory).getChildren()
-                    .map { NodeModel(it, level + 1) }
-                    .sortedWith(compareBy({ !it.file.isDirectory() }, { it.file.getFilename() }))
+                    .map { NodeModel(it, this, level + 1) }
+                    .sortedWith(compareBy({ !it.file.isDirectory() }, { it.file.filename }))
             } else {
                 emptyList()
             }
@@ -45,14 +51,18 @@ class FileTreeModel {
         }
 
         fun traverse(): List<NodeModel> {
-            val nodes = traverse(mutableListOf())
+            val nodes = traverseImpl()
             isTraversed = true
             return nodes
         }
 
-        private fun traverse(list: MutableList<NodeModel>): List<NodeModel> {
+        fun sortChildren() {
+            children = children.sortedWith(compareBy({ !it.file.isDirectory() }, { it.file.filename }))
+        }
+
+        private fun traverseImpl(list: MutableList<NodeModel> = mutableListOf()): List<NodeModel> {
             list.add(this)
-            children.forEach { it.traverse(list) }
+            children.forEach { it.traverseImpl(list) }
             return list
         }
     }

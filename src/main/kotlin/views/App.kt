@@ -41,7 +41,7 @@ fun App() {
     val vfs = OSVirtualFileSystem()
     val coroutineScope = rememberCoroutineScope() // required to run the state updates on the same scope as components composed
     val tabsViewModel by remember { mutableStateOf(TabsViewModel(TabsModel(), coroutineScope)) }
-    val fileTreeViewModel by remember { mutableStateOf(FileTreeViewModel(FileTreeModel(), tabsViewModel)) }
+    val fileTreeViewModel by remember { mutableStateOf(FileTreeViewModel(vfs, FileTreeModel(), tabsViewModel, coroutineScope)) }
     val projectViewModel by remember { mutableStateOf(ProjectViewModel(vfs, tabsViewModel, fileTreeViewModel, coroutineScope)) }
     val settings by remember { mutableStateOf(Settings()) }
 

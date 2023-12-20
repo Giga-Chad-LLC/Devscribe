@@ -3,6 +3,7 @@ package components.vfs
 import components.vfs.commands.VFSCommand
 import components.vfs.nodes.VFSDirectory
 import components.vfs.nodes.VFSFile
+import components.vfs.nodes.VFSNode
 import java.nio.file.Path
 import java.nio.file.attribute.FileTime
 
@@ -16,4 +17,6 @@ interface VirtualFileSystem {
     fun getProjectRoot(): VFSDirectory
     fun getProjectPath(): String?
     fun setProjectPath(rootDir: Path)
+
+    fun renameFile(file: VFSNode, renameTo: String)
 }
