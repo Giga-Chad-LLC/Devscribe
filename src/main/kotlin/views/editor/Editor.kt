@@ -40,6 +40,8 @@ import models.text.Cursor
 import viewmodels.TextViewModel
 import views.design.CustomTheme
 import views.design.Settings
+import kotlin.math.max
+import kotlin.math.min
 
 
 internal const val LINES_COUNT_VERTICAL_OFFSET = 5
@@ -204,7 +206,10 @@ private fun scrollVerticallyOnCursorOutOfCanvasViewport(
 /**
  * Handles mouse click on the canvas by changing cursor position
  */
+@Composable
 private fun Modifier.pointerInput(focusRequester: FocusRequester, editorState: EditorState): Modifier {
+    var oldDragOffset by remember { mutableStateOf(Offset(0f, 0f)) }
+
     return this.then(
         Modifier
             .pointerInput(Unit) {
@@ -213,9 +218,26 @@ private fun Modifier.pointerInput(focusRequester: FocusRequester, editorState: E
                     focusRequester.requestFocus()
 
                     // moving cursor to the mouse click position
+                    editorState.clearSelection()
                     val (lineIndex, lineOffset) = editorState.canvasOffsetToCursorPosition(offset)
                     editorState.textViewModel.textModel.changeCursorPosition(lineIndex, lineOffset)
                 })
+            }
+            .pointerInput(Unit) {
+                detectDragGestures(
+                    onDragStart = { offset ->
+                        oldDragOffset = offset
+
+                        editorState.startSelection()
+                        val (lineIndex, lineOffset) = editorState.canvasOffsetToCursorPosition(offset)
+                        editorState.textViewModel.textModel.changeCursorPosition(lineIndex, lineOffset)
+                    },
+                    onDrag = { _, offset ->
+                        val newOffset = oldDragOffset + offset
+                        oldDragOffset = newOffset
+                        val (lineIndex, lineOffset) = editorState.canvasOffsetToCursorPosition(newOffset)
+                        editorState.textViewModel.textModel.changeCursorPosition(lineIndex, lineOffset)
+                    })
             }
     )
 }
@@ -348,6 +370,68 @@ private fun createHighlighters(text: String): List<AbstractHighlighter> {
     return highlighters
 }
 
+private fun DrawScope.drawTextSelection(
+    editorState: EditorState,
+    settings: Settings,
+    translation: Pair<Float, Float>,
+    viewportVisibleLineIndexes: Pair<Int, Int>,
+    ) {
+    val selection = editorState.getSelection()
+
+    if (selection != null) {
+        val (translationX, translationY) = translation
+        val (selectionStart, selectionEnd) = selection
+
+        if (selectionStart.lineIndex == selectionEnd.lineIndex) {
+            // drawing single line
+            val (startX, startY) = editorState.canvasPositionToCanvasViewport(selectionStart)
+            drawRect(
+                color = settings.editorSettings.selectionColor,
+                topLeft = Offset(startX + translationX, startY + translationY),
+                size = Size(
+                    (selectionEnd.offset - selectionStart.offset) * editorState.symbolSize.width,
+                    editorState.symbolSize.height,
+                ),
+            )
+        }
+        else {
+            // draw 1st line of selection
+            val (startX, startY) = editorState.canvasPositionToCanvasViewport(selectionStart)
+            drawRect(
+                color = settings.editorSettings.selectionColor,
+                topLeft = Offset(startX + translationX, startY + translationY),
+                size = Size(
+                    editorState.canvasSize.value.width.toFloat(),
+                    editorState.symbolSize.height,
+                ),
+            )
+
+            val (startVisibleLineIndex, endVisibleLineIndex) = viewportVisibleLineIndexes
+            val startLineIndex = max(selectionStart.lineIndex + 1, startVisibleLineIndex)
+            val endLineIndex = min(selectionEnd.lineIndex, endVisibleLineIndex)
+
+            // drawing full lines
+            for (currentLineIndex in startLineIndex until endLineIndex) {
+                drawRect(
+                    color = settings.editorSettings.selectionColor,
+                    topLeft = Offset(translationX, currentLineIndex * editorState.symbolSize.height + translationY),
+                    size = Size(
+                        editorState.canvasSize.value.width.toFloat(),
+                        editorState.symbolSize.height,
+                    ),
+                )
+            }
+
+            // draw last line of selection
+            val (endX, endY) = editorState.canvasPositionToCanvasViewport(selectionEnd)
+            drawRect(
+                color = settings.editorSettings.selectionColor,
+                topLeft = Offset(translationX, endY + translationY),
+                size = Size(endX, editorState.symbolSize.height),
+            )
+        }
+    }
+}
 
 @OptIn(ExperimentalTextApi::class)
 @Composable
@@ -365,14 +449,6 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
         )
     }
 
-    /**
-     * Required to try to update pinned file model on each invocation because
-     * 'remember' of textViewModel does not recreate the object thus outdated pinned file model persists on the canvas.
-     *
-     * TODO: maybe not the best solution
-     */
-    textViewModel.updateActiveFileModel(activeFileModel)
-
     val fontFamilyResolver = LocalFontFamilyResolver.current
     val density = LocalDensity.current.density
 
@@ -384,6 +460,7 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
             getSymbolSize(fontFamilyResolver, textMeasurer, settings.fontSettings, density)
         },
         textViewModel = textViewModel,
+        textSelectionStartOffset = remember { mutableStateOf(null) },
         isSearchBarVisible = remember { mutableStateOf(false) },
         searchState = SearchState(
             searchStatus = remember { mutableStateOf(SearchStatus.IDLE) },
@@ -394,6 +471,19 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
             searchResultLength = remember { mutableStateOf(0) },
         )
     )
+
+    /**
+     * Required to try to update pinned file model on each invocation because
+     * 'remember' of textViewModel does not recreate the object thus outdated pinned file model persists on the canvas.
+     *
+     * TODO: maybe not the best solution
+     */
+    if (textViewModel.updateActiveFileModel(activeFileModel)) {
+        /**
+         * Active file updated -> remove text selection
+         */
+        editorState.clearSelection()
+    }
 
     val verticalScrollState = editorState.initializeVerticalScrollbar()
     val horizontalScrollState = editorState.initializeHorizontalScrollbar()
@@ -493,6 +583,7 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
                         val translationX = -horizontalOffset + TEXT_CANVAS_LEFT_MARGIN
                         val translationY = -verticalOffset
 
+
                         // drawing highlighter of cursored line
                         drawRect(
                             color = Color.DarkGray,
@@ -510,8 +601,17 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
                         }
 
                         // drawing text that is visible in the viewport
-                        val (startLineIndex, endLineIndex) = editorState.viewportLinesRange()
+                        val (startVisibleLineIndex, endVisibleLineIndex) = editorState.viewportLinesRange()
                         val viewportVisibleText = editorState.calculateViewportVisibleText()
+
+
+                        // drawing highlighter of text selection
+                        drawTextSelection(
+                            editorState = editorState,
+                            settings = settings,
+                            translation = (translationX to translationY),
+                            viewportVisibleLineIndexes = (startVisibleLineIndex to endVisibleLineIndex),
+                        )
 
                         // TODO: temporal for testing; implement better integration
                         val textStyles = createHighlighters(viewportVisibleText)
@@ -539,6 +639,7 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
                                     highlighter.end < it.textModel.totalOffsetOfLine(endLineIndex)
                         })*/
 
+                        // TODO: move into function
                         val measuredText = textMeasurer.measure(
                             text = AnnotatedString(viewportVisibleText, textStyles),
                             style = editorTextStyle
@@ -546,20 +647,21 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
 
                         drawText(
                             measuredText,
-                            topLeft = Offset(translationX, translationY + startLineIndex * editorState.symbolSize.height)
+                            topLeft = Offset(translationX, translationY + startVisibleLineIndex * editorState.symbolSize.height)
                         )
 
+                        // TODO: move into function
                         // drawing cursor if it is in the viewport
-                        if (it.cursor.lineNumber in startLineIndex until endLineIndex) {
+                        if (it.cursor.lineNumber in startVisibleLineIndex until endVisibleLineIndex) {
                             val cursorOffset = textViewModel.textModel.totalOffsetOfLine(it.cursor.lineNumber) -
-                                        textViewModel.textModel.totalOffsetOfLine(startLineIndex) + it.cursor.currentLineOffset
+                                        textViewModel.textModel.totalOffsetOfLine(startVisibleLineIndex) + it.cursor.currentLineOffset
 
                             val cursor: Rect = measuredText.getCursorRect(cursorOffset/*it.cursor.offset*/)
                             drawRect(
                                 color = Color.White,
                                 topLeft = Offset(
                                     cursor.left + translationX,
-                                    cursor.top + translationY + startLineIndex * editorState.symbolSize.height
+                                    cursor.top + translationY + startVisibleLineIndex * editorState.symbolSize.height
                                 ),
                                 size = cursor.size,
                                 style = Stroke(2f)
