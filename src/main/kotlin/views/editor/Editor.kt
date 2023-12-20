@@ -294,6 +294,11 @@ private fun Modifier.handleKeyboardInput(editorState: EditorState): Modifier {
                 else if (keyEvent.type == KeyEventType.KeyDown && keyEvent.isCtrlPressed && keyEvent.key == Key.F) {
                     editorState.isSearchBarVisible.value = true
                 }
+                else if (keyEvent.type == KeyEventType.KeyDown && !keyEvent.isCtrlPressed && keyEvent.key == Key.Tab) {
+                    // writing tabulation symbol on tab press
+                    textViewModel.symbol(keyEvent.utf16CodePoint.toChar())
+                    consumed = true
+                }
                 else if (keyEvent.type == KeyEventType.KeyDown && isPrintableSymbolAction(keyEvent)) {
                     textViewModel.symbol(keyEvent.utf16CodePoint.toChar())
                     consumed = true
@@ -510,8 +515,8 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
 
                         // TODO: temporal for testing; implement better integration
                         val textStyles = createHighlighters(viewportVisibleText)
-                            .map { highlighter -> AnnotatedString.Range(
-                                highlighter.style, highlighter.begin, highlighter.end) }
+                            .map { highlighter ->
+                                AnnotatedString.Range(highlighter.style, highlighter.begin, highlighter.end) }
 
                         /*val textStyles = editorState.codeHighlighters
                             .filter { highlighter ->
