@@ -34,6 +34,7 @@ class Settings {
 class EditorSettings {
     val linesPanel by mutableStateOf(LinesPanel())
     val highlightingOptions by mutableStateOf(HighlightingOptions())
+    val selectionColor by mutableStateOf(Color(33, 67, 131))
 }
 
 // TODO: move 'Color(90, 89, 86)' into separate variable (primaryColor in CustomTheme.colors?)
