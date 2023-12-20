@@ -80,7 +80,7 @@ fun FileTreeItem(
         },
         ContextMenuItem("Delete") {
             println("Delete file")
-            // TODO
+            fileTreeViewModel.remove(node)
         }
     )
 

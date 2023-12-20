@@ -70,8 +70,17 @@ class OSVirtualFileSystem : VirtualFileSystem {
         return virtualDirectory
     }
 
-    override fun renameFile(file: VFSNode, renameTo: String) {
-        file.filename = renameTo
+    override fun remove(node: VFSNode) {
+        if (node.isDirectory() && root == (node as VFSDirectory)) {
+            root = null
+        }
+        else {
+            (node.getParentNode() as VFSDirectory).removeChildNode(node)
+        }
+    }
+
+    override fun rename(node: VFSNode, renameTo: String) {
+        node.filename = renameTo
     }
 
     private fun indexProject(node: VFSDirectory, dirPath: Path) {

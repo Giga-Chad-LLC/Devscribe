@@ -8,20 +8,20 @@ import kotlin.io.path.exists
 
 class RenameNodeCommand(
     private val vfs: VirtualFileSystem,
-    private val virtualFile: VFSNode,
+    private val virtualNode: VFSNode,
     private val renameTo: String,
     private val callback: Runnable
 ) : VFSCommand {
     override fun run() {
-        println("Process RenameNodeCommand for file: $virtualFile")
+        println("Process RenameNodeCommand for file: $virtualNode")
         val rwlock = GlobalReadWriteLock.getInstance()
         val filePath: Path
         val newFilePath: Path
 
         rwlock.lockRead()
         try {
-            newFilePath = Path.of((virtualFile.getParentNode()?.getNodePath()?.toString() ?: ""), renameTo)
-            filePath = virtualFile.getNodePath()
+            newFilePath = Path.of((virtualNode.getParentNode()?.getNodePath()?.toString() ?: ""), renameTo)
+            filePath = virtualNode.getNodePath()
         }
         finally {
             rwlock.unlockRead()
@@ -48,7 +48,7 @@ class RenameNodeCommand(
         if (success) {
             rwlock.lockWrite()
             try {
-                vfs.renameFile(virtualFile, renameTo)
+                vfs.rename(virtualNode, renameTo)
             } finally {
                 rwlock.unlockWrite()
             }

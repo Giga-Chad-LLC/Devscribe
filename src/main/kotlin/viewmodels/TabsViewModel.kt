@@ -63,6 +63,14 @@ class TabsViewModel(
         tabsModel.removePinnedFile(fileModelId)
     }
 
+    fun containsFile(virtualFile: VFSFile): Boolean {
+        return tabsModel.containsFile(virtualFile)
+    }
+
+    fun get(virtualFile: VFSFile): PinnedFileModel {
+        return tabsModel.get(virtualFile)
+    }
+
     /**
      * Activates tab with VFS file
      */

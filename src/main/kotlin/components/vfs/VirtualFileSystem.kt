@@ -20,5 +20,6 @@ interface VirtualFileSystem {
 
     fun createChildFile(parent: VFSDirectory, childFilename: String): VFSNode
     fun createChildDirectory(parent: VFSDirectory, childDirname: String): VFSNode
-    fun renameFile(file: VFSNode, renameTo: String)
+    fun remove(node: VFSNode)
+    fun rename(node: VFSNode, renameTo: String)
 }

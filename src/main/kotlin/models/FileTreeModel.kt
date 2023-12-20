@@ -4,7 +4,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import components.vfs.nodes.VFSDirectory
-import components.vfs.nodes.VFSFile
 import components.vfs.nodes.VFSNode
 
 class FileTreeModel {
@@ -32,6 +31,20 @@ class FileTreeModel {
             }
             isTraversed = false
         }
+    }
+
+    fun remove(node: NodeModel) {
+        if (root == node) {
+            root = null
+        }
+        else {
+            val parent = node.parent
+            for (node in (parent?.file as VFSDirectory).getChildren()) {
+
+            }
+            parent?.children?.remove(node)
+        }
+        isTraversed = false
     }
 
     inner class NodeModel(

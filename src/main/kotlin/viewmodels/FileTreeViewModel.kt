@@ -2,6 +2,7 @@ package viewmodels
 
 import components.vfs.VirtualFileSystem
 import components.vfs.commands.CreateNodeCommand
+import components.vfs.commands.RemoveNodeCommand
 import components.vfs.commands.RenameNodeCommand
 import components.vfs.nodes.VFSDirectory
 import components.vfs.nodes.VFSFile
@@ -74,6 +75,34 @@ class FileTreeViewModel(
                 }
             }
         )
+    }
+
+    fun remove(node: FileTreeModel.NodeModel) {
+        vfs.post(
+            RemoveNodeCommand(vfs, node.file) {
+                viewScope.launch {
+                    fileTreeModel.remove(node)
+
+                    if (node.file.isFile() && tabsViewModel.containsFile(node.file as VFSFile)) {
+                        tabsViewModel.unpin(tabsViewModel.get(node.file).id)
+                    }
+                    else {
+                        unpinRemovedFiles(node)
+                    }
+                }
+            }
+        )
+    }
+
+    private fun unpinRemovedFiles(dir: FileTreeModel.NodeModel) {
+        dir.children.forEach {
+            if (it.file.isFile() && tabsViewModel.containsFile(it.file as VFSFile)) {
+                tabsViewModel.unpin(tabsViewModel.get(it.file).id)
+            }
+            else {
+                unpinRemovedFiles(it)
+            }
+        }
     }
 
     private fun isValidFilename(path: String): Boolean {
