@@ -22,6 +22,8 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.ClipboardManager
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFontFamilyResolver
 import androidx.compose.ui.text.*
@@ -247,7 +249,7 @@ private fun Modifier.pointerInput(focusRequester: FocusRequester, editorState: E
  * Handles keyboard inputs by executing commands of TextViewModel
  */
 @OptIn(ExperimentalComposeUiApi::class)
-private fun Modifier.handleKeyboardInput(editorState: EditorState): Modifier {
+private fun Modifier.handleKeyboardInput(editorState: EditorState, clipboardManager: ClipboardManager): Modifier {
     val textViewModel = editorState.textViewModel
 
     return this.then(
@@ -276,6 +278,18 @@ private fun Modifier.handleKeyboardInput(editorState: EditorState): Modifier {
                         textViewModel.directionUp()
                     }
                     consumed = true
+                }
+                else if (keyEvent.type == KeyEventType.KeyDown && keyEvent.isCtrlPressed && keyEvent.key == Key.C) {
+                    // copy selected text into clipboard
+                    editorState.copySelection(clipboardManager)
+                }
+                else if (keyEvent.type == KeyEventType.KeyDown && keyEvent.isCtrlPressed && keyEvent.key == Key.V) {
+                    // insert text from clipboard
+                    // TODO
+                }
+                else if (keyEvent.type == KeyEventType.KeyDown && keyEvent.isCtrlPressed && keyEvent.key == Key.X) {
+                    // clip selected text into clipboard and remove it
+                    // TODO
                 }
                 else if (keyEvent.type == KeyEventType.KeyDown && keyEvent.key == Key.DirectionRight) {
                     if (keyEvent.isCtrlPressed) {
@@ -370,6 +384,7 @@ private fun createHighlighters(text: String): List<AbstractHighlighter> {
     return highlighters
 }
 
+
 private fun DrawScope.drawTextSelection(
     editorState: EditorState,
     settings: Settings,
@@ -432,6 +447,8 @@ private fun DrawScope.drawTextSelection(
         }
     }
 }
+
+
 
 @OptIn(ExperimentalTextApi::class)
 @Composable
@@ -546,7 +563,7 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
                         // focusRequester() should be added BEFORE focusable()
                         .focusRequester(requester)
                         .focusable(interactionSource = editorInteractionSource)
-                        .handleKeyboardInput(editorState)
+                        .handleKeyboardInput(editorState, LocalClipboardManager.current)
                         .onSizeChanged { editorState.canvasSize.value = it }
                         .pointerInput(requester, editorState)
                         .scrollable(verticalScrollState, Orientation.Vertical)
@@ -644,7 +661,6 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
                             text = AnnotatedString(viewportVisibleText, textStyles),
                             style = editorTextStyle
                         )
-
                         drawText(
                             measuredText,
                             topLeft = Offset(translationX, translationY + startVisibleLineIndex * editorState.symbolSize.height)

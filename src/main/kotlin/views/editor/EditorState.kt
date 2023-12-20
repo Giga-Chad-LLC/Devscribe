@@ -5,6 +5,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.platform.ClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.IntSize
 import common.TextConstants
 import common.ceilToInt
@@ -51,6 +53,25 @@ internal fun EditorState.getSelection(): Pair<CanvasPosition, CanvasPosition>? {
 
     return null
 }
+
+
+internal fun EditorState.copySelection(clipboardManager: ClipboardManager) {
+    val (selectionStart, selectionEnd) = getSelection() ?: return
+
+    val fullText = textViewModel.textModel.textInLinesRange(selectionStart.lineIndex, selectionEnd.lineIndex + 1)
+
+    val startDropSymbolsCount = selectionStart.lineOffset
+    val endDropSymbolsCount = textViewModel.textModel.textLines()[selectionEnd.lineIndex].length - selectionEnd.lineOffset
+
+    val text = fullText
+        // dropping last 'endDropSymbolsCount' symbols
+        .substring(0, fullText.length - endDropSymbolsCount)
+        // dropping first 'startDropSymbolsCount' symbols
+        .substring(startDropSymbolsCount)
+
+    clipboardManager.setText(AnnotatedString(text))
+}
+
 
 internal fun EditorState.clearSelection() {
     textSelectionStartOffset.value = null
