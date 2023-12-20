@@ -21,7 +21,6 @@ class TabsViewModel(
 ) {
     val files: List<PinnedFileModel> = tabsModel.pinnedFiles
     var activeFile by mutableStateOf<PinnedFileModel?>(null)
-    var testing by mutableStateOf(0)
 
     fun updateFilenameForPinnedFile(virtualFile: VFSFile, renameTo: String) {
         tabsModel.rename(virtualFile, renameTo)
