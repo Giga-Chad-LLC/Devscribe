@@ -33,12 +33,16 @@ class TextViewModel(
     )
 
     /**
-     * Updates current active file model if provided pinned file model is not the same as current file
+     * Updates current active file model if provided pinned file model is not the same as current file.
+     *
+     * Returns true if a file updates successfully, otherwise false.
      */
-    fun updateActiveFileModel(other: PinnedFileModel) {
+    fun updateActiveFileModel(other: PinnedFileModel): Boolean {
         if (activeFileModel.id != other.id) {
             activeFileModel = other
+            return true
         }
+        return false
     }
 
     private fun syncModelWithVFS(fileToSyncWith: PinnedFileModel?) {
@@ -110,8 +114,21 @@ class TextViewModel(
         debounceHandler.run(activeFileModel)
     }
 
-    fun symbol(ch: Char, ) {
+    /**
+     * Removes piece of text in range [startOffset, endOffset)
+     */
+    fun delete(startOffset: Int, endOffset: Int) {
+        activeFileModel.textModel.removeRange(startOffset, endOffset)
+        debounceHandler.run(activeFileModel)
+    }
+
+    fun insert(ch: Char) {
         activeFileModel.textModel.insert(ch)
+        debounceHandler.run(activeFileModel)
+    }
+
+    fun insert(str: String) {
+        activeFileModel.textModel.insert(str)
         debounceHandler.run(activeFileModel)
     }
 

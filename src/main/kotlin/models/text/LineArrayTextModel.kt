@@ -95,6 +95,88 @@ class LineArrayTextModel : TextModel {
         println(cursor)
     }
 
+    override fun removeRange(beginOffset: Int, endOffset: Int) {
+        val linesToRemoveIndexes = mutableListOf<Int>()
+        var currentOffset = 0
+
+        var firstLineStartOffset: Int = -1
+        var lastLineStartOffset: Int = -1
+
+        // collect line to remove
+        for (i in textLines.indices) {
+            // first line
+            if (currentOffset <= beginOffset && beginOffset <= currentOffset + textLines[i].length) {
+                linesToRemoveIndexes.add(i)
+                firstLineStartOffset = currentOffset
+            }
+            // last line
+            else if (currentOffset <= endOffset && endOffset <= currentOffset + textLines[i].length) {
+                linesToRemoveIndexes.add(i)
+                lastLineStartOffset = currentOffset
+            }
+            // in-between line
+            else if (currentOffset in beginOffset until endOffset) {
+                linesToRemoveIndexes.add(i)
+            }
+            // TODO: else break?
+
+            currentOffset += (textLines[i].length + System.lineSeparator().length)
+        }
+
+        assert(firstLineStartOffset >= 0)
+        assert(lastLineStartOffset >= 0 || linesToRemoveIndexes.size == 1)
+
+        /*fun trimTextLine(index: Int, dropFirstCount: Int, dropLastCount: Int) {
+            val lineLength = textLines[index].length
+            textLines[index] = textLines[index]
+                // remove characters after end offset (inclusive)
+                .substring(0, lineLength - dropLastCount)
+                // remove first characters to reach start offset
+                .substring(dropFirstCount)
+        }*/
+
+        // range corresponds to a single line
+        if (linesToRemoveIndexes.size == 1) {
+            val index = linesToRemoveIndexes.first()
+            val leftRemainingChunk = textLines[index].substring(0, beginOffset - firstLineStartOffset)
+            val rightRemainingChunk = textLines[index].substring(endOffset - firstLineStartOffset)
+
+            textLines[index] = leftRemainingChunk + rightRemainingChunk
+        }
+        // range consists of multiple lines
+        else {
+            // trim first and last lines: the result is concatenation of them
+            run {
+                val firstIndex = linesToRemoveIndexes.first()
+                val firstChunk = textLines[firstIndex].substring(0, beginOffset - firstLineStartOffset)
+
+                val lastIndex = linesToRemoveIndexes.last()
+                val lastChunk = textLines[lastIndex].substring(endOffset - lastLineStartOffset)
+
+                textLines[firstIndex] = firstChunk + lastChunk
+                textLines.removeAt(lastIndex)
+            }
+            /**
+             * Remove intermediate lines.
+             * Removing lines in a reversed order since it is sorted in descending order.
+             * In this case lines will be deleted from the greatest index to the lowest index,
+             * thus yet not deleted lines with lower will preserve their initial indexes.
+             */
+            val reversedLineIndexes = linesToRemoveIndexes.reversed()
+            for (i in 1 until reversedLineIndexes.lastIndex) {
+                textLines.removeAt(reversedLineIndexes[i])
+            }
+        }
+
+        cursor = cursor.run {
+            val newOffset = beginOffset
+            val newLineNumber = linesToRemoveIndexes.first()
+            val newCurrentLineOffset = beginOffset - firstLineStartOffset
+
+            Cursor(newOffset, newLineNumber, newCurrentLineOffset)
+        }
+    }
+
     override fun newline() {
         val currentCursorLineChunks = splitCurrentCursorLine()
         textLines[cursor.lineNumber] = currentCursorLineChunks.beforeCursor
@@ -196,20 +278,25 @@ class LineArrayTextModel : TextModel {
             '(', ')',
         )
 
-        val whitespaceCountBeforeFirstWord = chunk
-            // dropping letters after a starting sequence of consecutive delimiters
-            .dropLast(chunk.length - max(chunk.indexOfFirst { !delimiters.contains(it) }, 0))
-            .count()
+        if (chunk.indexOfFirst { it != TextConstants.nonBreakingSpaceChar } == -1) {
+            // chunk consists of only whitespaces
+            println("[chunk='${chunk}']: whitespaceCountBeforeFirstWord=${chunk.length} firstWord=''")
+            return chunk.length
+        }
+        else {
+            val whitespaceCountBeforeFirstWord = chunk
+                // dropping letters after a starting sequence of consecutive delimiters
+                .dropLast(chunk.length - max(chunk.indexOfFirst { !delimiters.contains(it) }, 0))
+                .count()
 
-        val firstWord: String = chunk
-            .split(*delimiters.map { ch -> ch.toString() }.toTypedArray())
-            .firstOrNull { s -> s.isNotEmpty() } ?: ""
+            val firstWord: String = chunk
+                .split(*delimiters.map { ch -> ch.toString() }.toTypedArray())
+                .firstOrNull { s -> s.isNotEmpty() } ?: ""
 
-        println("whitespaceCountBeforeFirstWord=${whitespaceCountBeforeFirstWord} " +
-                " " +
-                "firstWord='${firstWord}'")
+            println("[chunk='${chunk}']: whitespaceCountBeforeFirstWord=${whitespaceCountBeforeFirstWord} firstWord='${firstWord}'")
 
-        return whitespaceCountBeforeFirstWord + firstWord.length
+            return whitespaceCountBeforeFirstWord + firstWord.length
+        }
     }
 
     override fun forwardToNextWord() {
@@ -256,12 +343,11 @@ class LineArrayTextModel : TextModel {
             val shift = calculateShiftToNextWord(chunk.reversed())
             println("chunk='${chunk}', shift=${shift}")
 
-
             if (shift > 0) {
                 // moving to the end of first word
-                newOffset = offset - shift + 1
+                newOffset = offset - shift
                 newLineNumber = lineNumber
-                newCurrentLineOffset = currentLineOffset - shift + 1
+                newCurrentLineOffset = currentLineOffset - shift
             }
             else if (lineNumber > 0) {
                 // move of the next line
@@ -318,7 +404,7 @@ class LineArrayTextModel : TextModel {
 
             if (lineNumber > 0) {
                 newLineNumber = lineNumber - 1
-                val newLineLength = textLines[lineNumber - 1].length
+                val newLineLength = textLines[newLineNumber].length
 
                 if (currentLineOffset > newLineLength) {
                     // current line offset exceeds the length of a new line -> move to the end of new line
@@ -348,9 +434,11 @@ class LineArrayTextModel : TextModel {
             val newLineNumber: Int
             val newCurrentLineOffset: Int
 
+            val currentLineLength = textLines[lineNumber].length
+
             if (lineNumber + 1 < textLines.size) {
                 newLineNumber = lineNumber + 1
-                val newLineLength = textLines[lineNumber + 1].length
+                val newLineLength = textLines[newLineNumber].length
 
                 newCurrentLineOffset = if (currentLineOffset > newLineLength) {
                     // move to the end of new line
@@ -360,14 +448,14 @@ class LineArrayTextModel : TextModel {
                     currentLineOffset
                 }
 
-                newOffset = offset + (textLines[lineNumber].length - currentLineOffset) +
-                        newCurrentLineOffset + System.lineSeparator().length
+                newOffset = offset + (currentLineLength - currentLineOffset) +
+                        System.lineSeparator().length + newCurrentLineOffset
             }
             else {
                 // staying at the last line and placing cursor at the end position
-                newOffset = offset + (textLines[lineNumber].length - currentLineOffset);
+                newOffset = offset + (currentLineLength - currentLineOffset)
                 newLineNumber = lineNumber
-                newCurrentLineOffset = textLines[lineNumber].length
+                newCurrentLineOffset = currentLineLength
             }
 
             Cursor(newOffset, newLineNumber, newCurrentLineOffset)

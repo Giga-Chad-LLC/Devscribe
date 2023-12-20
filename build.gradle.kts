@@ -34,6 +34,7 @@ dependencies {
             runtimeOnly("org.lwjgl:${lwjglDep}:${lwjglVersion}:${native}")
         }
     }
+    testImplementation("org.junit.jupiter:junit-jupiter:5.8.1")
 }
 
 compose.desktop {
@@ -46,4 +47,9 @@ compose.desktop {
             packageVersion = "1.0.0"
         }
     }
+}
+
+tasks.test {
+    // Use the built-in JUnit support of Gradle
+    useJUnitPlatform()
 }

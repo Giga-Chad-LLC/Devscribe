@@ -5,6 +5,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.platform.ClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.IntSize
 import common.TextConstants
 import common.ceilToInt
@@ -13,17 +15,100 @@ import kotlin.math.abs
 import kotlin.math.roundToInt
 
 
+internal data class CanvasPosition(
+    val lineIndex: Int,
+    val lineOffset: Int,
+    val offset: Int,
+) {
+    override fun toString(): String {
+        return "CanvasPosition[lineIndex=$lineIndex, lineOffset=$lineOffset, offset=$offset]"
+    }
+}
+
 internal data class EditorState(
     val verticalScrollOffset: MutableState<Float>,
     val horizontalScrollOffset: MutableState<Float>,
     val canvasSize: MutableState<IntSize>,
     val symbolSize: Size,
     val textViewModel: TextViewModel,
+    val textSelectionStartOffset: MutableState<CanvasPosition?>,
 
     val isSearchBarVisible: MutableState<Boolean>,
     val searchState: SearchState,
 )
 
+internal fun EditorState.getSelection(): Pair<CanvasPosition, CanvasPosition>? {
+    var selectionStart = textSelectionStartOffset.value
+    if (selectionStart != null) {
+        var selectionEnd = CanvasPosition(
+            lineIndex = textViewModel.cursor.lineNumber,
+            lineOffset = textViewModel.cursor.currentLineOffset,
+            offset = textViewModel.cursor.offset,
+        )
+
+        if (selectionStart.offset > selectionEnd.offset) {
+            val tmp = selectionEnd
+            selectionEnd = selectionStart
+            selectionStart = tmp
+        }
+
+        return (selectionStart to selectionEnd)
+    }
+
+    return null
+}
+
+
+internal fun EditorState.deleteSelection() {
+    val (selectionStart, selectionEnd) = getSelection() ?: return
+    clearSelection()
+    textViewModel.delete(selectionStart.offset, selectionEnd.offset)
+}
+
+internal fun EditorState.selectionExists(): Boolean {
+    return textSelectionStartOffset.value != null
+}
+
+internal fun EditorState.copySelection(clipboardManager: ClipboardManager) {
+    val (selectionStart, selectionEnd) = getSelection() ?: return
+
+    val fullText = textViewModel.textModel.textInLinesRange(selectionStart.lineIndex, selectionEnd.lineIndex + 1)
+
+    val startDropSymbolsCount = selectionStart.lineOffset
+    val endDropSymbolsCount = textViewModel.textModel.textLines()[selectionEnd.lineIndex].length - selectionEnd.lineOffset
+
+    val text = fullText
+        // dropping last 'endDropSymbolsCount' symbols
+        .substring(0, fullText.length - endDropSymbolsCount)
+        // dropping first 'startDropSymbolsCount' symbols
+        .substring(startDropSymbolsCount)
+
+    clipboardManager.setText(AnnotatedString(text))
+}
+
+internal fun EditorState.pasteTextFromClipboard(clipboardManager: ClipboardManager) {
+    clipboardManager.getText()?.let { text ->
+        textViewModel.insert(text.text)
+    }
+}
+
+
+internal fun EditorState.clearSelection() {
+    textSelectionStartOffset.value = null
+}
+
+internal fun EditorState.startSelection() {
+    val lineIndex = textViewModel.cursor.lineNumber
+    val lineOffset = textViewModel.cursor.currentLineOffset
+    val offset = textViewModel.cursor.offset
+    textSelectionStartOffset.value = CanvasPosition(lineIndex, lineOffset, offset)
+}
+
+internal fun EditorState.startSelectionIfNotPresent() {
+    if (textSelectionStartOffset.value == null) {
+        startSelection()
+    }
+}
 
 internal fun EditorState.getMaxVerticalScrollOffset(): Float {
     /**
@@ -128,7 +213,7 @@ internal fun EditorState.searchTextInFile(uneditedSearchText: String) {
  */
 internal fun EditorState.canvasOffsetToCursorPosition(offset: Offset) : Pair<Int, Int> {
     val lineIndex = ((offset.y + verticalScrollOffset.value) / symbolSize.height)
-        .toInt().coerceAtMost(textViewModel.textModel.linesCount() - 1)
+        .toInt().coerceAtLeast(0).coerceAtMost(textViewModel.textModel.linesCount() - 1)
 
     /*println("symbolWidth=${symbolSize.width}")
     println("lineOffsetFloat=${(offset.x + horizontalScrollOffset.value - TEXT_CANVAS_LEFT_MARGIN) / symbolSize.width}")*/
@@ -139,6 +224,10 @@ internal fun EditorState.canvasOffsetToCursorPosition(offset: Offset) : Pair<Int
     return lineIndex to lineOffset
 }
 
+// TODO: use it everywhere, i.e. remove manual conversion
+internal fun EditorState.canvasPositionToCanvasViewport(canvasPosition: CanvasPosition): Pair<Float, Float> {
+    return ((canvasPosition.lineOffset * symbolSize.width) to (canvasPosition.lineIndex * symbolSize.height))
+}
 
 internal fun EditorState.viewportLinesRange(): Pair<Int, Int> {
     val startOffset = Offset(horizontalScrollOffset.value, verticalScrollOffset.value)

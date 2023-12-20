@@ -22,6 +22,8 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.ClipboardManager
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFontFamilyResolver
 import androidx.compose.ui.text.*
@@ -30,13 +32,18 @@ import androidx.compose.ui.unit.dp
 import common.ceilToInt
 import common.isPrintableSymbolAction
 import components.DebounceHandler
+import components.lexer.Lexer
+import components.lexer.Token
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import models.PinnedFileModel
+import models.highlighters.*
 import models.text.Cursor
 import viewmodels.TextViewModel
 import views.design.CustomTheme
 import views.design.Settings
+import kotlin.math.max
+import kotlin.math.min
 
 
 internal const val LINES_COUNT_VERTICAL_OFFSET = 5
@@ -201,7 +208,10 @@ private fun scrollVerticallyOnCursorOutOfCanvasViewport(
 /**
  * Handles mouse click on the canvas by changing cursor position
  */
+@Composable
 private fun Modifier.pointerInput(focusRequester: FocusRequester, editorState: EditorState): Modifier {
+    var oldDragOffset by remember { mutableStateOf(Offset(0f, 0f)) }
+
     return this.then(
         Modifier
             .pointerInput(Unit) {
@@ -210,9 +220,26 @@ private fun Modifier.pointerInput(focusRequester: FocusRequester, editorState: E
                     focusRequester.requestFocus()
 
                     // moving cursor to the mouse click position
+                    editorState.clearSelection()
                     val (lineIndex, lineOffset) = editorState.canvasOffsetToCursorPosition(offset)
                     editorState.textViewModel.textModel.changeCursorPosition(lineIndex, lineOffset)
                 })
+            }
+            .pointerInput(Unit) {
+                detectDragGestures(
+                    onDragStart = { offset ->
+                        oldDragOffset = offset
+
+                        editorState.startSelection()
+                        val (lineIndex, lineOffset) = editorState.canvasOffsetToCursorPosition(offset)
+                        editorState.textViewModel.textModel.changeCursorPosition(lineIndex, lineOffset)
+                    },
+                    onDrag = { _, offset ->
+                        val newOffset = oldDragOffset + offset
+                        oldDragOffset = newOffset
+                        val (lineIndex, lineOffset) = editorState.canvasOffsetToCursorPosition(newOffset)
+                        editorState.textViewModel.textModel.changeCursorPosition(lineIndex, lineOffset)
+                    })
             }
     )
 }
@@ -222,7 +249,7 @@ private fun Modifier.pointerInput(focusRequester: FocusRequester, editorState: E
  * Handles keyboard inputs by executing commands of TextViewModel
  */
 @OptIn(ExperimentalComposeUiApi::class)
-private fun Modifier.handleKeyboardInput(editorState: EditorState): Modifier {
+private fun Modifier.handleKeyboardInput(editorState: EditorState, clipboardManager: ClipboardManager): Modifier {
     val textViewModel = editorState.textViewModel
 
     return this.then(
@@ -235,10 +262,18 @@ private fun Modifier.handleKeyboardInput(editorState: EditorState): Modifier {
                     consumed = true
                 }
                 else if (keyEvent.type == KeyEventType.KeyDown && keyEvent.key == Key.Backspace) {
-                    textViewModel.backspace()
+                    if (editorState.selectionExists()) {
+                        editorState.deleteSelection()
+                    }
+                    else {
+                        textViewModel.backspace()
+                    }
                     consumed = true
                 }
                 else if (keyEvent.type == KeyEventType.KeyDown && keyEvent.key == Key.Enter) {
+                    if (editorState.selectionExists()) {
+                        editorState.deleteSelection()
+                    }
                     textViewModel.newline()
                     consumed = true
                 }
@@ -247,17 +282,33 @@ private fun Modifier.handleKeyboardInput(editorState: EditorState): Modifier {
                         // CTRL + ↑ scrolls the canvas by 1 line up
                         editorState.scrollVerticallyByLines(1)
                     }
+                    else if (keyEvent.isShiftPressed) {
+                        editorState.startSelectionIfNotPresent()
+                        textViewModel.directionUp()
+                    }
                     else {
+                        editorState.clearSelection()
                         textViewModel.directionUp()
                     }
                     consumed = true
                 }
                 else if (keyEvent.type == KeyEventType.KeyDown && keyEvent.key == Key.DirectionRight) {
+                    // CTRL + → forwards cursor to the end of next word
                     if (keyEvent.isCtrlPressed) {
-                        // CTRL + → forwards cursor to the end of next word
+                        if (keyEvent.isShiftPressed) {
+                            editorState.startSelectionIfNotPresent()
+                        }
+                        else {
+                            editorState.clearSelection()
+                        }
                         textViewModel.forwardToNextWord()
                     }
+                    else if (keyEvent.isShiftPressed) {
+                        editorState.startSelectionIfNotPresent()
+                        textViewModel.directionRight()
+                    }
                     else {
+                        editorState.clearSelection()
                         textViewModel.directionRight()
                     }
                     consumed = true
@@ -267,32 +318,80 @@ private fun Modifier.handleKeyboardInput(editorState: EditorState): Modifier {
                     if (keyEvent.isCtrlPressed) {
                         editorState.scrollVerticallyByLines(-1)
                     }
+                    else if (keyEvent.isShiftPressed) {
+                        editorState.startSelectionIfNotPresent()
+                        textViewModel.directionDown()
+                    }
                     else {
+                        editorState.clearSelection()
                         textViewModel.directionDown()
                     }
                     consumed = true
                 }
                 else if (keyEvent.type == KeyEventType.KeyDown && keyEvent.key == Key.DirectionLeft) {
+                    // CTRL + ← backwards cursor to the start of previous word
                     if (keyEvent.isCtrlPressed) {
-                        // CTRL + ← backwards cursor to the start of previous word
+                        if (keyEvent.isShiftPressed) {
+                            editorState.startSelectionIfNotPresent()
+                        }
+                        else {
+                            editorState.clearSelection()
+                        }
                         textViewModel.backwardToPreviousWord()
                     }
-                    textViewModel.directionLeft()
+                    else if (keyEvent.isShiftPressed) {
+                        editorState.startSelectionIfNotPresent()
+                        textViewModel.directionLeft()
+                    }
+                    else {
+                        editorState.clearSelection()
+                        textViewModel.directionLeft()
+                    }
                     consumed = true
                 }
                 else if (keyEvent.type == KeyEventType.KeyDown && keyEvent.key == Key.Spacebar) {
+                    if (editorState.selectionExists()) {
+                        editorState.deleteSelection()
+                    }
                     textViewModel.whitespace()
                     consumed = true
                 }
                 else if (keyEvent.type == KeyEventType.KeyDown && keyEvent.key == Key.Delete) {
-                    textViewModel.delete()
+                    if (editorState.selectionExists()) {
+                        editorState.deleteSelection()
+                    }
+                    else {
+                        textViewModel.delete()
+                    }
                     consumed = true
+                }
+                else if (keyEvent.type == KeyEventType.KeyDown && keyEvent.isCtrlPressed && keyEvent.key == Key.C) {
+                    // copy selected text into clipboard
+                    editorState.copySelection(clipboardManager)
+                }
+                else if (keyEvent.type == KeyEventType.KeyDown && keyEvent.isCtrlPressed && keyEvent.key == Key.V) {
+                    // insert text from clipboard
+                    editorState.deleteSelection()
+                    editorState.pasteTextFromClipboard(clipboardManager)
+                }
+                else if (keyEvent.type == KeyEventType.KeyDown && keyEvent.isCtrlPressed && keyEvent.key == Key.X) {
+                    // clip selected text into clipboard and remove it
+                    editorState.copySelection(clipboardManager)
+                    editorState.deleteSelection()
                 }
                 else if (keyEvent.type == KeyEventType.KeyDown && keyEvent.isCtrlPressed && keyEvent.key == Key.F) {
                     editorState.isSearchBarVisible.value = true
                 }
+                else if (keyEvent.type == KeyEventType.KeyDown && !keyEvent.isCtrlPressed && keyEvent.key == Key.Tab) {
+                    // writing tabulation symbol on tab press
+                    textViewModel.insert("    ")
+                    consumed = true
+                }
                 else if (keyEvent.type == KeyEventType.KeyDown && isPrintableSymbolAction(keyEvent)) {
-                    textViewModel.symbol(keyEvent.utf16CodePoint.toChar())
+                    if (editorState.selectionExists()) {
+                        editorState.deleteSelection()
+                    }
+                    textViewModel.insert(keyEvent.utf16CodePoint.toChar())
                     consumed = true
                 }
 
@@ -300,6 +399,112 @@ private fun Modifier.handleKeyboardInput(editorState: EditorState): Modifier {
             }
     )
 }
+
+
+private fun createHighlighters(text: String): List<AbstractHighlighter> {
+    val lexer = Lexer()
+    val tokens = lexer.tokenize(text)
+
+    val highlighters = mutableListOf<AbstractHighlighter>()
+
+    for (token in tokens) {
+        val begin = token.startPosition.offset
+        val end = begin + token.length
+
+        val highlighter: AbstractHighlighter? = when(token.type) {
+            Token.TokenType.VAR,
+            Token.TokenType.FUNCTION,
+            Token.TokenType.IF,
+            Token.TokenType.ELSE,
+            Token.TokenType.FOR,
+            Token.TokenType.WHILE -> KeywordHighlighter(begin, end)
+            Token.TokenType.NOT,
+            Token.TokenType.DOT,
+            Token.TokenType.COMMA -> AuxiliaryHighlighter(begin, end)
+            Token.TokenType.INTEGER_LITERAL,
+            Token.TokenType.FLOAT_LITERAL -> NumericLiteralHighlighter(begin, end)
+            Token.TokenType.STRING_LITERAL -> StringLiteralHighlighter(begin, end)
+            Token.TokenType.BOOLEAN_TRUE_LITERAL,
+            Token.TokenType.BOOLEAN_FALSE_LITERAL -> BooleanLiteralHighlighter(begin, end)
+            Token.TokenType.INVALID -> InvalidSequenceHighlighter(begin, end)
+            // Token.TokenType.IDENTIFIER -> ?
+            else -> null
+        }
+
+        if (highlighter != null) {
+            highlighters.add(highlighter)
+        }
+    }
+
+    return highlighters
+}
+
+
+private fun DrawScope.drawTextSelection(
+    editorState: EditorState,
+    settings: Settings,
+    translation: Pair<Float, Float>,
+    viewportVisibleLineIndexes: Pair<Int, Int>,
+    ) {
+    val selection = editorState.getSelection()
+
+    if (selection != null) {
+        val (translationX, translationY) = translation
+        val (selectionStart, selectionEnd) = selection
+
+        println("selectionStart=$selectionStart, selectionEnd=$selectionEnd")
+
+        if (selectionStart.lineIndex == selectionEnd.lineIndex) {
+            // drawing single line
+            val (startX, startY) = editorState.canvasPositionToCanvasViewport(selectionStart)
+            drawRect(
+                color = settings.editorSettings.selectionColor,
+                topLeft = Offset(startX + translationX, startY + translationY),
+                size = Size(
+                    (selectionEnd.lineOffset - selectionStart.lineOffset) * editorState.symbolSize.width,
+                    editorState.symbolSize.height,
+                ),
+            )
+        }
+        else {
+            // draw 1st line of selection
+            val (startX, startY) = editorState.canvasPositionToCanvasViewport(selectionStart)
+            drawRect(
+                color = settings.editorSettings.selectionColor,
+                topLeft = Offset(max(startX + translationX, 0f), startY + translationY),
+                size = Size(
+                    editorState.canvasSize.value.width.toFloat(),
+                    editorState.symbolSize.height,
+                ),
+            )
+
+            val (startVisibleLineIndex, endVisibleLineIndex) = viewportVisibleLineIndexes
+            val startLineIndex = max(selectionStart.lineIndex + 1, startVisibleLineIndex)
+            val endLineIndex = min(selectionEnd.lineIndex, endVisibleLineIndex)
+
+            // drawing full lines
+            for (currentLineIndex in startLineIndex until endLineIndex) {
+                drawRect(
+                    color = settings.editorSettings.selectionColor,
+                    topLeft = Offset(0f, currentLineIndex * editorState.symbolSize.height + translationY),
+                    size = Size(
+                        editorState.canvasSize.value.width.toFloat(),
+                        editorState.symbolSize.height,
+                    ),
+                )
+            }
+
+            // draw last line of selection
+            val (endX, endY) = editorState.canvasPositionToCanvasViewport(selectionEnd)
+            drawRect(
+                color = settings.editorSettings.selectionColor,
+                topLeft = Offset(translationX, endY + translationY),
+                size = Size(endX, editorState.symbolSize.height),
+            )
+        }
+    }
+}
+
 
 
 @OptIn(ExperimentalTextApi::class)
@@ -318,14 +523,6 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
         )
     }
 
-    /**
-     * Required to try to update pinned file model on each invocation because
-     * 'remember' of textViewModel does not recreate the object thus outdated pinned file model persists on the canvas.
-     *
-     * TODO: maybe not the best solution
-     */
-    textViewModel.updateActiveFileModel(activeFileModel)
-
     val fontFamilyResolver = LocalFontFamilyResolver.current
     val density = LocalDensity.current.density
 
@@ -337,7 +534,7 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
             getSymbolSize(fontFamilyResolver, textMeasurer, settings.fontSettings, density)
         },
         textViewModel = textViewModel,
-
+        textSelectionStartOffset = remember { mutableStateOf(null) },
         isSearchBarVisible = remember { mutableStateOf(false) },
         searchState = SearchState(
             searchStatus = remember { mutableStateOf(SearchStatus.IDLE) },
@@ -348,6 +545,19 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
             searchResultLength = remember { mutableStateOf(0) },
         )
     )
+
+    /**
+     * Required to try to update pinned file model on each invocation because
+     * 'remember' of textViewModel does not recreate the object thus outdated pinned file model persists on the canvas.
+     *
+     * TODO: maybe not the best solution
+     */
+    if (textViewModel.updateActiveFileModel(activeFileModel)) {
+        /**
+         * Active file updated -> remove text selection
+         */
+        editorState.clearSelection()
+    }
 
     val verticalScrollState = editorState.initializeVerticalScrollbar()
     val horizontalScrollState = editorState.initializeHorizontalScrollbar()
@@ -410,7 +620,7 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
                         // focusRequester() should be added BEFORE focusable()
                         .focusRequester(requester)
                         .focusable(interactionSource = editorInteractionSource)
-                        .handleKeyboardInput(editorState)
+                        .handleKeyboardInput(editorState, LocalClipboardManager.current)
                         .onSizeChanged { editorState.canvasSize.value = it }
                         .pointerInput(requester, editorState)
                         .scrollable(verticalScrollState, Orientation.Vertical)
@@ -447,6 +657,7 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
                         val translationX = -horizontalOffset + TEXT_CANVAS_LEFT_MARGIN
                         val translationY = -verticalOffset
 
+
                         // drawing highlighter of cursored line
                         drawRect(
                             color = Color.DarkGray,
@@ -464,30 +675,66 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
                         }
 
                         // drawing text that is visible in the viewport
-                        val (startLineIndex, endLineIndex) = editorState.viewportLinesRange()
+                        val (startVisibleLineIndex, endVisibleLineIndex) = editorState.viewportLinesRange()
                         val viewportVisibleText = editorState.calculateViewportVisibleText()
 
+
+                        // drawing highlighter of text selection
+                        drawTextSelection(
+                            editorState = editorState,
+                            settings = settings,
+                            translation = (translationX to translationY),
+                            viewportVisibleLineIndexes = (startVisibleLineIndex to endVisibleLineIndex),
+                        )
+
+                        // TODO: temporal for testing; implement better integration
+                        val textStyles = createHighlighters(viewportVisibleText)
+                            .map { highlighter ->
+                                AnnotatedString.Range(highlighter.style, highlighter.begin, highlighter.end) }
+
+                        /*val textStyles = editorState.codeHighlighters
+                            .filter { highlighter ->
+                                it.textModel.totalOffsetOfLine(startLineIndex) <= highlighter.begin &&
+                                        highlighter.end <=
+                                        it.textModel.totalOffsetOfLine(endLineIndex - 1) + it.textModel.lineLength(endLineIndex - 1)
+                            }
+                            .map { highlighter ->
+                                val offset = it.textModel.totalOffsetOfLine(startLineIndex)
+                                AnnotatedString.Range(
+                                    highlighter.style,
+                                    highlighter.begin - offset,
+                                    highlighter.end - offset,
+                                )
+                            }
+                        println("begin=${it.textModel.totalOffsetOfLine(startLineIndex)}, " +
+                                "end=${it.textModel.totalOffsetOfLine(endLineIndex - 1) + it.textModel.lineLength(endLineIndex - 1)}")
+                        println(editorState.codeHighlighters.filter { highlighter ->
+                            it.textModel.totalOffsetOfLine(startLineIndex) <= highlighter.begin &&
+                                    highlighter.end < it.textModel.totalOffsetOfLine(endLineIndex)
+                        })*/
+
+                        // TODO: move into function
                         val measuredText = textMeasurer.measure(
-                            text = AnnotatedString(viewportVisibleText),
+                            text = AnnotatedString(viewportVisibleText, textStyles),
                             style = editorTextStyle
                         )
-
                         drawText(
                             measuredText,
-                            topLeft = Offset(translationX, translationY + startLineIndex * editorState.symbolSize.height)
+                            topLeft = Offset(translationX, translationY + startVisibleLineIndex * editorState.symbolSize.height)
                         )
 
+                        // TODO: move into function
                         // drawing cursor if it is in the viewport
-                        if (it.cursor.lineNumber in startLineIndex until endLineIndex) {
+                        if (it.cursor.lineNumber in startVisibleLineIndex until endVisibleLineIndex) {
                             val cursorOffset = textViewModel.textModel.totalOffsetOfLine(it.cursor.lineNumber) -
-                                        textViewModel.textModel.totalOffsetOfLine(startLineIndex) + it.cursor.currentLineOffset
+                                        textViewModel.textModel.totalOffsetOfLine(startVisibleLineIndex) + it.cursor.currentLineOffset
 
                             val cursor: Rect = measuredText.getCursorRect(cursorOffset/*it.cursor.offset*/)
                             drawRect(
                                 color = Color.White,
                                 topLeft = Offset(
                                     cursor.left + translationX,
-                                    cursor.top + translationY + startLineIndex * editorState.symbolSize.height
+                                    cursor.top + translationY + startVisibleLineIndex * editorState.symbolSize.height
                                 ),
                                 size = cursor.size,
                                 style = Stroke(2f)
