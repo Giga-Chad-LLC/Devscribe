@@ -196,20 +196,25 @@ class LineArrayTextModel : TextModel {
             '(', ')',
         )
 
-        val whitespaceCountBeforeFirstWord = chunk
-            // dropping letters after a starting sequence of consecutive delimiters
-            .dropLast(chunk.length - max(chunk.indexOfFirst { !delimiters.contains(it) }, 0))
-            .count()
+        if (chunk.indexOfFirst { it != TextConstants.nonBreakingSpaceChar } == -1) {
+            // chunk consists of only whitespaces
+            println("[chunk='${chunk}']: whitespaceCountBeforeFirstWord=${chunk.length} firstWord=''")
+            return chunk.length
+        }
+        else {
+            val whitespaceCountBeforeFirstWord = chunk
+                // dropping letters after a starting sequence of consecutive delimiters
+                .dropLast(chunk.length - max(chunk.indexOfFirst { !delimiters.contains(it) }, 0))
+                .count()
 
-        val firstWord: String = chunk
-            .split(*delimiters.map { ch -> ch.toString() }.toTypedArray())
-            .firstOrNull { s -> s.isNotEmpty() } ?: ""
+            val firstWord: String = chunk
+                .split(*delimiters.map { ch -> ch.toString() }.toTypedArray())
+                .firstOrNull { s -> s.isNotEmpty() } ?: ""
 
-        println("whitespaceCountBeforeFirstWord=${whitespaceCountBeforeFirstWord} " +
-                " " +
-                "firstWord='${firstWord}'")
+            println("[chunk='${chunk}']: whitespaceCountBeforeFirstWord=${whitespaceCountBeforeFirstWord} firstWord='${firstWord}'")
 
-        return whitespaceCountBeforeFirstWord + firstWord.length
+            return whitespaceCountBeforeFirstWord + firstWord.length
+        }
     }
 
     override fun forwardToNextWord() {
@@ -256,12 +261,11 @@ class LineArrayTextModel : TextModel {
             val shift = calculateShiftToNextWord(chunk.reversed())
             println("chunk='${chunk}', shift=${shift}")
 
-
             if (shift > 0) {
                 // moving to the end of first word
-                newOffset = offset - shift + 1
+                newOffset = offset - shift
                 newLineNumber = lineNumber
-                newCurrentLineOffset = currentLineOffset - shift + 1
+                newCurrentLineOffset = currentLineOffset - shift
             }
             else if (lineNumber > 0) {
                 // move of the next line
@@ -318,7 +322,7 @@ class LineArrayTextModel : TextModel {
 
             if (lineNumber > 0) {
                 newLineNumber = lineNumber - 1
-                val newLineLength = textLines[lineNumber - 1].length
+                val newLineLength = textLines[newLineNumber].length
 
                 if (currentLineOffset > newLineLength) {
                     // current line offset exceeds the length of a new line -> move to the end of new line
@@ -348,9 +352,11 @@ class LineArrayTextModel : TextModel {
             val newLineNumber: Int
             val newCurrentLineOffset: Int
 
+            val currentLineLength = textLines[lineNumber].length
+
             if (lineNumber + 1 < textLines.size) {
                 newLineNumber = lineNumber + 1
-                val newLineLength = textLines[lineNumber + 1].length
+                val newLineLength = textLines[newLineNumber].length
 
                 newCurrentLineOffset = if (currentLineOffset > newLineLength) {
                     // move to the end of new line
@@ -360,14 +366,14 @@ class LineArrayTextModel : TextModel {
                     currentLineOffset
                 }
 
-                newOffset = offset + (textLines[lineNumber].length - currentLineOffset) +
-                        newCurrentLineOffset + System.lineSeparator().length
+                newOffset = offset + (currentLineLength - currentLineOffset) +
+                        System.lineSeparator().length + newCurrentLineOffset
             }
             else {
                 // staying at the last line and placing cursor at the end position
-                newOffset = offset + (textLines[lineNumber].length - currentLineOffset);
+                newOffset = offset + (currentLineLength - currentLineOffset)
                 newLineNumber = lineNumber
-                newCurrentLineOffset = textLines[lineNumber].length
+                newCurrentLineOffset = currentLineLength
             }
 
             Cursor(newOffset, newLineNumber, newCurrentLineOffset)
