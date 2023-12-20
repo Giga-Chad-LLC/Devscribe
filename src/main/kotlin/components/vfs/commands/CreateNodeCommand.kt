@@ -16,7 +16,7 @@ class CreateNodeCommand(
     private val parentVirtualDirectory: VFSDirectory,
     private val filename: String,
     private val isFile: Boolean,
-    private val callback: Consumer<VFSNode>
+    private val callback: (VFSNode) -> Unit = {}
 ) : VFSCommand {
     override fun run() {
         println("Process CreateFileCommand for parent folder: $parentVirtualDirectory")
@@ -57,11 +57,10 @@ class CreateNodeCommand(
         if (success) {
             rwlock.lockWrite()
             try {
-                if (isFile) {
-                    createdNode = vfs.createChildFile(parentVirtualDirectory, filename)
-                }
-                else {
-                    createdNode = vfs.createChildDirectory(parentVirtualDirectory, filename)
+                createdNode = if (isFile) {
+                    vfs.createChildFile(parentVirtualDirectory, filename)
+                } else {
+                    vfs.createChildDirectory(parentVirtualDirectory, filename)
                 }
             } finally {
                 rwlock.unlockWrite()
@@ -69,7 +68,7 @@ class CreateNodeCommand(
 
             rwlock.lockRead()
             try {
-                callback.accept(createdNode)
+                callback(createdNode)
             } finally {
                 rwlock.unlockRead()
             }

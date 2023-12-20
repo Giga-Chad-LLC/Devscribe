@@ -15,6 +15,7 @@ class PinnedFileModel(
 ) {
     var virtualFile by mutableStateOf(virtualFile)
     var filename by mutableStateOf(virtualFile.filename)
+    var isSaved by mutableStateOf(virtualFile.isSaved)
     var id: UUID = UUID.randomUUID()
 
 //    val filename: String

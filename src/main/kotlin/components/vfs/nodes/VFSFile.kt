@@ -11,6 +11,7 @@ class VFSFile(
     timestamp: FileTime
 ) : VFSNode(vfs, filename, parent, id, timestamp) {
     var data: String = ""
+    var isSaved: Boolean = true
     // val textData: TextModel = LineArrayTextModel()
 
     override fun isFile(): Boolean {

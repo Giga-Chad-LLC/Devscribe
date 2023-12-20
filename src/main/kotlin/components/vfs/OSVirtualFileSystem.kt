@@ -47,6 +47,7 @@ class OSVirtualFileSystem : VirtualFileSystem {
 
     override fun syncFileWithFrontend(file: VFSFile, data: String) {
         file.data = data
+        file.isSaved = false
         file.timestamp = FileTime.from(Instant.now())
     }
 

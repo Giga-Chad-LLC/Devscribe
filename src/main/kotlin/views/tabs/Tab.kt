@@ -31,6 +31,7 @@ import views.design.Settings
 fun Tab(
     filename: String,
     active: Boolean,
+    saved: Boolean,
     settings: Settings,
     onTabClick: () -> Unit,
     onCloseButtonClick: () -> Unit
@@ -105,7 +106,7 @@ fun Tab(
         Text(
             modifier = Modifier.padding(10.dp, 6.dp, 7.dp, 6.dp),
             text = filename,
-            color = Color.White,
+            color = if (saved) Color.White else Color.Gray,
             fontFamily = settings.fontSettings.fontFamily,
             fontSize = 14.sp,
         )

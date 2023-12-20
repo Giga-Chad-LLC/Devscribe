@@ -48,7 +48,9 @@ class TextViewModel(coroutineScope: CoroutineScope, private var activeFileModel:
                     vfs,
                     fileToSyncWith.virtualFile,
                     fileToSyncWith.textModel.text
-                )
+                ) {
+                    fileToSyncWith.isSaved = fileToSyncWith.virtualFile.isSaved
+                }
             )
         }
 
@@ -58,9 +60,9 @@ class TextViewModel(coroutineScope: CoroutineScope, private var activeFileModel:
             println("Save file to the disk")
             val vfs = fileToSave.virtualFile.getVirtualFileSystem()
 
-            vfs.post(SaveFileOnDiskCommand(
-                fileToSave.virtualFile
-            ))
+            vfs.post(SaveFileOnDiskCommand(fileToSave.virtualFile) {
+                fileToSave.isSaved = fileToSave.virtualFile.isSaved
+            })
         }
     }
 

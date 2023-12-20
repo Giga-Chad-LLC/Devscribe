@@ -20,6 +20,7 @@ fun TabsContainer(modifier: Modifier, settings: Settings, tabsViewModel: TabsVie
             Tab(
                 filename = pinnedFileModel.filename,
                 active = isActive,
+                saved = pinnedFileModel.isSaved,
                 onTabClick = { tabsViewModel.select(pinnedFileModel.id) },
                 settings = settings,
                 onCloseButtonClick = {

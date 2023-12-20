@@ -10,7 +10,7 @@ class RenameNodeCommand(
     private val vfs: VirtualFileSystem,
     private val virtualNode: VFSNode,
     private val renameTo: String,
-    private val callback: Runnable
+    private val callback: () -> Unit = {}
 ) : VFSCommand {
     override fun run() {
         println("Process RenameNodeCommand for file: $virtualNode")
@@ -55,7 +55,7 @@ class RenameNodeCommand(
 
             rwlock.lockRead()
             try {
-                callback.run()
+                callback()
             } finally {
                 rwlock.unlockRead()
             }

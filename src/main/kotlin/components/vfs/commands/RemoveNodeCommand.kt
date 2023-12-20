@@ -10,7 +10,7 @@ import kotlin.io.path.exists
 class RemoveNodeCommand(
     private val vfs: VirtualFileSystem,
     private val virtualNode: VFSNode,
-    private val callback: Runnable
+    private val callback: () -> Unit = {}
 ) : VFSCommand {
     override fun run() {
         println("Process RemoveNodeCommand in vfs: $vfs")
@@ -56,7 +56,7 @@ class RemoveNodeCommand(
 
         rwlock.lockRead()
         try {
-            callback.run()
+            callback()
         }
         finally {
             rwlock.unlockRead()

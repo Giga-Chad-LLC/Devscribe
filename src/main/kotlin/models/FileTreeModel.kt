@@ -39,9 +39,6 @@ class FileTreeModel {
         }
         else {
             val parent = node.parent
-            for (node in (parent?.file as VFSDirectory).getChildren()) {
-
-            }
             parent?.children?.remove(node)
         }
         isTraversed = false
