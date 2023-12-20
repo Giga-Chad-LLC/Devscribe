@@ -19,7 +19,11 @@ internal data class CanvasPosition(
     val lineIndex: Int,
     val lineOffset: Int,
     val offset: Int,
-)
+) {
+    override fun toString(): String {
+        return "CanvasPosition[lineIndex=$lineIndex, lineOffset=$lineOffset, offset=$offset]"
+    }
+}
 
 internal data class EditorState(
     val verticalScrollOffset: MutableState<Float>,
@@ -88,6 +92,12 @@ internal fun EditorState.startSelection() {
     val lineOffset = textViewModel.cursor.currentLineOffset
     val offset = textViewModel.cursor.offset
     textSelectionStartOffset.value = CanvasPosition(lineIndex, lineOffset, offset)
+}
+
+internal fun EditorState.startSelectionIfNotPresent() {
+    if (textSelectionStartOffset.value == null) {
+        startSelection()
+    }
 }
 
 internal fun EditorState.getMaxVerticalScrollOffset(): Float {

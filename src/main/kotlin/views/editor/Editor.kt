@@ -262,21 +262,13 @@ private fun Modifier.handleKeyboardInput(editorState: EditorState, clipboardMana
                     consumed = true
                 }
                 else if (keyEvent.type == KeyEventType.KeyDown && keyEvent.key == Key.Backspace) {
+                    // TODO: check if selection exists
                     textViewModel.backspace()
                     consumed = true
                 }
                 else if (keyEvent.type == KeyEventType.KeyDown && keyEvent.key == Key.Enter) {
+                    // TODO: remove selected text and insert newline
                     textViewModel.newline()
-                    consumed = true
-                }
-                else if (keyEvent.type == KeyEventType.KeyDown && keyEvent.key == Key.DirectionUp) {
-                    if (keyEvent.isCtrlPressed) {
-                        // CTRL + ↑ scrolls the canvas by 1 line up
-                        editorState.scrollVerticallyByLines(1)
-                    }
-                    else {
-                        textViewModel.directionUp()
-                    }
                     consumed = true
                 }
                 else if (keyEvent.type == KeyEventType.KeyDown && keyEvent.isCtrlPressed && keyEvent.key == Key.C) {
@@ -291,12 +283,38 @@ private fun Modifier.handleKeyboardInput(editorState: EditorState, clipboardMana
                     // clip selected text into clipboard and remove it
                     // TODO
                 }
-                else if (keyEvent.type == KeyEventType.KeyDown && keyEvent.key == Key.DirectionRight) {
+                else if (keyEvent.type == KeyEventType.KeyDown && keyEvent.key == Key.DirectionUp) {
                     if (keyEvent.isCtrlPressed) {
-                        // CTRL + → forwards cursor to the end of next word
-                        textViewModel.forwardToNextWord()
+                        // CTRL + ↑ scrolls the canvas by 1 line up
+                        editorState.scrollVerticallyByLines(1)
+                    }
+                    else if (keyEvent.isShiftPressed) {
+                        editorState.startSelectionIfNotPresent()
+                        textViewModel.directionUp()
                     }
                     else {
+                        editorState.clearSelection()
+                        textViewModel.directionUp()
+                    }
+                    consumed = true
+                }
+                else if (keyEvent.type == KeyEventType.KeyDown && keyEvent.key == Key.DirectionRight) {
+                    // CTRL + → forwards cursor to the end of next word
+                    if (keyEvent.isCtrlPressed) {
+                        if (keyEvent.isShiftPressed) {
+                            editorState.startSelectionIfNotPresent()
+                        }
+                        else {
+                            editorState.clearSelection()
+                        }
+                        textViewModel.forwardToNextWord()
+                    }
+                    else if (keyEvent.isShiftPressed) {
+                        editorState.startSelectionIfNotPresent()
+                        textViewModel.directionRight()
+                    }
+                    else {
+                        editorState.clearSelection()
                         textViewModel.directionRight()
                     }
                     consumed = true
@@ -306,17 +324,35 @@ private fun Modifier.handleKeyboardInput(editorState: EditorState, clipboardMana
                     if (keyEvent.isCtrlPressed) {
                         editorState.scrollVerticallyByLines(-1)
                     }
+                    else if (keyEvent.isShiftPressed) {
+                        editorState.startSelectionIfNotPresent()
+                        textViewModel.directionDown()
+                    }
                     else {
+                        editorState.clearSelection()
                         textViewModel.directionDown()
                     }
                     consumed = true
                 }
                 else if (keyEvent.type == KeyEventType.KeyDown && keyEvent.key == Key.DirectionLeft) {
+                    // CTRL + ← backwards cursor to the start of previous word
                     if (keyEvent.isCtrlPressed) {
-                        // CTRL + ← backwards cursor to the start of previous word
+                        if (keyEvent.isShiftPressed) {
+                            editorState.startSelectionIfNotPresent()
+                        }
+                        else {
+                            editorState.clearSelection()
+                        }
                         textViewModel.backwardToPreviousWord()
                     }
-                    textViewModel.directionLeft()
+                    else if (keyEvent.isShiftPressed) {
+                        editorState.startSelectionIfNotPresent()
+                        textViewModel.directionLeft()
+                    }
+                    else {
+                        editorState.clearSelection()
+                        textViewModel.directionLeft()
+                    }
                     consumed = true
                 }
                 else if (keyEvent.type == KeyEventType.KeyDown && keyEvent.key == Key.Spacebar) {
@@ -397,6 +433,8 @@ private fun DrawScope.drawTextSelection(
         val (translationX, translationY) = translation
         val (selectionStart, selectionEnd) = selection
 
+        println("selectionStart=$selectionStart, selectionEnd=$selectionEnd")
+
         if (selectionStart.lineIndex == selectionEnd.lineIndex) {
             // drawing single line
             val (startX, startY) = editorState.canvasPositionToCanvasViewport(selectionStart)
@@ -404,7 +442,7 @@ private fun DrawScope.drawTextSelection(
                 color = settings.editorSettings.selectionColor,
                 topLeft = Offset(startX + translationX, startY + translationY),
                 size = Size(
-                    (selectionEnd.offset - selectionStart.offset) * editorState.symbolSize.width,
+                    (selectionEnd.lineOffset - selectionStart.lineOffset) * editorState.symbolSize.width,
                     editorState.symbolSize.height,
                 ),
             )
@@ -414,7 +452,7 @@ private fun DrawScope.drawTextSelection(
             val (startX, startY) = editorState.canvasPositionToCanvasViewport(selectionStart)
             drawRect(
                 color = settings.editorSettings.selectionColor,
-                topLeft = Offset(startX + translationX, startY + translationY),
+                topLeft = Offset(max(startX + translationX, 0f), startY + translationY),
                 size = Size(
                     editorState.canvasSize.value.width.toFloat(),
                     editorState.symbolSize.height,
@@ -429,7 +467,7 @@ private fun DrawScope.drawTextSelection(
             for (currentLineIndex in startLineIndex until endLineIndex) {
                 drawRect(
                     color = settings.editorSettings.selectionColor,
-                    topLeft = Offset(translationX, currentLineIndex * editorState.symbolSize.height + translationY),
+                    topLeft = Offset(0f, currentLineIndex * editorState.symbolSize.height + translationY),
                     size = Size(
                         editorState.canvasSize.value.width.toFloat(),
                         editorState.symbolSize.height,
