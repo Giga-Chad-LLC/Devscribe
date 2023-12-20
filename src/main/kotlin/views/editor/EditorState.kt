@@ -72,6 +72,12 @@ internal fun EditorState.copySelection(clipboardManager: ClipboardManager) {
     clipboardManager.setText(AnnotatedString(text))
 }
 
+internal fun EditorState.pasteTextFromClipboard(clipboardManager: ClipboardManager) {
+    clipboardManager.getText()?.let { text ->
+        textViewModel.insert(text.text)
+    }
+}
+
 
 internal fun EditorState.clearSelection() {
     textSelectionStartOffset.value = null

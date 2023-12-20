@@ -285,7 +285,7 @@ private fun Modifier.handleKeyboardInput(editorState: EditorState, clipboardMana
                 }
                 else if (keyEvent.type == KeyEventType.KeyDown && keyEvent.isCtrlPressed && keyEvent.key == Key.V) {
                     // insert text from clipboard
-                    // TODO
+                    editorState.pasteTextFromClipboard(clipboardManager)
                 }
                 else if (keyEvent.type == KeyEventType.KeyDown && keyEvent.isCtrlPressed && keyEvent.key == Key.X) {
                     // clip selected text into clipboard and remove it
