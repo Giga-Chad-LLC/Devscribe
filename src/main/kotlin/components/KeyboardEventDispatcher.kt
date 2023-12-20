@@ -1,4 +1,4 @@
-package components.dispatcher
+package components
 
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.input.key.*
@@ -12,6 +12,10 @@ class KeyboardEventDispatcher private constructor() {
 
     private fun isSaveFileAction(event: KeyEvent): Boolean {
         return (event.type == KeyEventType.KeyDown && event.key == Key.S && event.isCtrlPressed)
+    }
+
+    private fun isOpenProjectAction(event: KeyEvent): Boolean {
+        return (event.type == KeyEventType.KeyDown && event.key == Key.O && event.isCtrlPressed)
     }
 
     /*private fun isBackspaceAction(event: KeyEvent): Boolean {
@@ -56,6 +60,9 @@ class KeyboardEventDispatcher private constructor() {
 
         if (isSaveFileAction(event)) {
             action = KeyboardAction.SAVE_FILE
+        }
+        if (isOpenProjectAction(event)) {
+            action = KeyboardAction.OPEN_PROJECT
         }
         /*if (isBackspaceAction(event)) {
             action = KeyboardAction.BACKSPACE
@@ -130,6 +137,7 @@ class KeyboardEventDispatcher private constructor() {
 
     enum class KeyboardAction {
         SAVE_FILE,
+        OPEN_PROJECT,
         BACKSPACE,
         NEWLINE,
         DIRECTION_UP,

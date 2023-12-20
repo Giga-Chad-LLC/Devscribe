@@ -1,8 +1,8 @@
 package viewmodels
 
 import components.DebounceHandler
-import components.dispatcher.KeyboardEventDispatcher
-import components.dispatcher.KeyboardEventDispatcher.KeyboardAction
+import components.KeyboardEventDispatcher
+import components.KeyboardEventDispatcher.KeyboardAction
 import components.vfs.commands.SaveFileOnDiskCommand
 import components.vfs.commands.SyncFileWithFrontendCommand
 import kotlinx.coroutines.CoroutineScope
@@ -48,7 +48,9 @@ class TextViewModel(coroutineScope: CoroutineScope, private var activeFileModel:
                     vfs,
                     fileToSyncWith.virtualFile,
                     fileToSyncWith.textModel.text
-                )
+                ) {
+                    fileToSyncWith.isSaved = fileToSyncWith.virtualFile.isSaved
+                }
             )
         }
 
@@ -58,9 +60,9 @@ class TextViewModel(coroutineScope: CoroutineScope, private var activeFileModel:
             println("Save file to the disk")
             val vfs = fileToSave.virtualFile.getVirtualFileSystem()
 
-            vfs.post(SaveFileOnDiskCommand(
-                fileToSave.virtualFile
-            ))
+            vfs.post(SaveFileOnDiskCommand(fileToSave.virtualFile) {
+                fileToSave.isSaved = fileToSave.virtualFile.isSaved
+            })
         }
     }
 

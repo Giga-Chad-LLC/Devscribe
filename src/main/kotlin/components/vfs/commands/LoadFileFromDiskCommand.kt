@@ -12,7 +12,7 @@ import kotlin.io.path.getLastModifiedTime
 class LoadFileFromDiskCommand(
     private val vfs: VirtualFileSystem,
     private val virtualFile: VFSFile,
-    private val callback: Runnable
+    private val callback: () -> Unit = {}
 ) : VFSCommand {
     override fun run() {
         println("Process LoadFileFromDiskCommand in vfs: $vfs")
@@ -52,7 +52,7 @@ class LoadFileFromDiskCommand(
 
         rwlock.lockRead()
         try {
-            callback.run()
+            callback()
         }
         finally {
             rwlock.unlockRead()
