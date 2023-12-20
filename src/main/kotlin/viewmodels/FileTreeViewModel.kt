@@ -4,12 +4,17 @@ import components.vfs.nodes.VFSDirectory
 import components.vfs.nodes.VFSFile
 import models.FileTreeModel
 
-class FileTreeViewModel(private val fileTreeMode: FileTreeModel, private val tabsViewModel: TabsViewModel) {
-    val nodes: List<FileTreeModel.NodeModel>
-        get() =
-            if (fileTreeMode.root != null) {
-                fileTreeMode.root!!.traverse()
-            } else emptyList()
+class FileTreeViewModel(private val fileTreeModel: FileTreeModel, private val tabsViewModel: TabsViewModel) {
+    var nodes: List<FileTreeModel.NodeModel> = emptyList()
+        get() {
+            if (fileTreeModel.root != null && !fileTreeModel.isTraversed) {
+                field = fileTreeModel.root!!.traverse()
+                println("Traverse: size=${field.size}")
+            } else {
+                println("Use prev: size=${field.size}")
+            }
+            return field
+        }
 
     fun click(node: FileTreeModel.NodeModel) = node.apply {
         when (type) {
@@ -18,5 +23,5 @@ class FileTreeViewModel(private val fileTreeMode: FileTreeModel, private val tab
         }
     }
 
-    fun setRoot(root: VFSDirectory) = fileTreeMode.setRoot(root)
+    fun setRoot(root: VFSDirectory) = fileTreeModel.setRoot(root)
 }

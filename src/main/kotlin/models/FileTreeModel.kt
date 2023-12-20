@@ -8,11 +8,13 @@ import components.vfs.nodes.VFSNode
 
 class FileTreeModel {
     var root by mutableStateOf<NodeModel?>(null)
+    var isTraversed by mutableStateOf(false)
 
     fun setRoot(vfsRoot: VFSDirectory) {
         root = NodeModel(vfsRoot, 0).apply {
             toggleExpanded()
         }
+        isTraversed = false
     }
 
 
@@ -39,9 +41,16 @@ class FileTreeModel {
             } else {
                 emptyList()
             }
+            isTraversed = false
         }
 
-        fun traverse(list: MutableList<NodeModel> = mutableListOf()): List<NodeModel> {
+        fun traverse(): List<NodeModel> {
+            val nodes = traverse(mutableListOf())
+            isTraversed = true
+            return nodes
+        }
+
+        private fun traverse(list: MutableList<NodeModel>): List<NodeModel> {
             list.add(this)
             children.forEach { it.traverse(list) }
             return list
