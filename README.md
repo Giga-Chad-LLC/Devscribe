@@ -19,10 +19,12 @@ Full-fledged IDE developed in Kotlin with support of syntax highlighting, file r
 - Vertical and Horizontal canvas scrolling.
 - Text searching inside opened file and navigation to prev/next search result entry.
 - Ability to open multiple files using tabs.
-- VFS integration: opening file from OS, saving files on disk, file renaming, file deletion, file creation.
+- VFS integration: opening project directory from OS, saving files on disk, file renaming, file deletion, file creation.
 - Implementation of Lexer for a fictional programming language.
 - Syntax highlighting.
-- Navigation without mouse use.
+- Navigation without mouse use (using tabs only).
+- Selection via mouse drags and keyboard arrows movement.
+- Copy/paste/cut functionality of selected text.
 
 
 ## Implementation details:
