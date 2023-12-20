@@ -7,7 +7,8 @@ import components.vfs.nodes.VFSFile
 class SyncFileWithFrontendCommand(
     private val vfs: VirtualFileSystem,
     private val file: VFSFile,
-    private val data: String
+    private val data: String,
+    private val callback: () -> Unit = {}
 ) : VFSCommand {
     override fun run() {
         println("Process SyncFileWithFrontendCommand in vfs: $vfs")
@@ -21,6 +22,14 @@ class SyncFileWithFrontendCommand(
         }
         finally {
             rwlock.unlockWrite()
+        }
+
+        rwlock.lockRead()
+        try {
+            callback()
+        }
+        finally {
+            rwlock.unlockRead()
         }
     }
 }

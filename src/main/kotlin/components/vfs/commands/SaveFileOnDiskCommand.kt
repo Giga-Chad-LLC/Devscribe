@@ -8,7 +8,8 @@ import kotlin.io.path.exists
 import kotlin.io.path.getLastModifiedTime
 
 class SaveFileOnDiskCommand(
-    private val virtualFile: VFSFile
+    private val virtualFile: VFSFile,
+    private val callback: () -> Unit = {}
 ) : VFSCommand {
     override fun run() {
         println("Process SaveFileOnDiskCommand for file: $virtualFile")
@@ -31,11 +32,37 @@ class SaveFileOnDiskCommand(
             return
         }
 
-        println("Saving file: '$filePath'")
-        filePath.toFile().bufferedWriter().use {
-            it.write(fileData)
-            it.close()
+        var success = true
+        try {
+            println("Saving file: '$filePath'")
+            filePath.toFile().bufferedWriter().use {
+                it.write(fileData)
+                it.close()
+            }
+            println("File: '$filePath' saved")
         }
-        println("File: '$filePath' saved")
+        catch (err: Exception) {
+            success = false
+            println("Saving file '$filePath' error: ${err.message}")
+            err.printStackTrace()
+        }
+
+        if (success) {
+            rwlock.lockWrite()
+            try {
+                virtualFile.isSaved = true
+            }
+            finally {
+                rwlock.unlockWrite()
+            }
+
+            rwlock.lockRead()
+            try {
+                callback()
+            }
+            finally {
+                rwlock.unlockRead()
+            }
+        }
     }
 }

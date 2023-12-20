@@ -1,11 +1,13 @@
 package viewmodels
 
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import common.kthBeforeIndex
 import components.vfs.commands.LoadFileFromDiskCommand
 import components.vfs.nodes.VFSFile
+import components.vfs.nodes.VFSNode
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import models.PinnedFileModel
@@ -19,6 +21,10 @@ class TabsViewModel(
 ) {
     val files: List<PinnedFileModel> = tabsModel.pinnedFiles
     var activeFile by mutableStateOf<PinnedFileModel?>(null)
+
+    fun updateFilenameForPinnedFile(virtualFile: VFSFile, renameTo: String) {
+        tabsModel.rename(virtualFile, renameTo)
+    }
 
     fun pin(file: VFSFile) {
         if (!tabsModel.containsFile(file)) {
@@ -57,6 +63,14 @@ class TabsViewModel(
         tabsModel.removePinnedFile(fileModelId)
     }
 
+    fun containsFile(virtualFile: VFSFile): Boolean {
+        return tabsModel.containsFile(virtualFile)
+    }
+
+    fun get(virtualFile: VFSFile): PinnedFileModel {
+        return tabsModel.get(virtualFile)
+    }
+
     /**
      * Activates tab with VFS file
      */
@@ -84,6 +98,10 @@ class TabsViewModel(
         }
     }
 
+    fun unpinAll() {
+        tabsModel.pinnedFiles.clear()
+        activeFile = null
+    }
 
     /*fun getActiveFile(): PinnedFileModel? {
         for (fileModel in tabsModel.pinnedFiles) {

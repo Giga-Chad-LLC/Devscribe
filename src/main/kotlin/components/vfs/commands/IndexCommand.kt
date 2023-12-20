@@ -5,7 +5,7 @@ import components.vfs.VirtualFileSystem
 
 class IndexCommand(
     private val vfs: VirtualFileSystem,
-    private val callback: Runnable
+    private val callback: () -> Unit = {}
 ) : VFSCommand {
     override fun run() {
         println("Process IndexCommand in vfs: $vfs")
@@ -21,7 +21,7 @@ class IndexCommand(
 
         rwlock.lockRead()
         try {
-            callback.run()
+            callback()
         }
         finally {
             rwlock.unlockRead()

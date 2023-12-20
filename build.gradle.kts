@@ -20,6 +20,20 @@ dependencies {
     // (in a separate module for demo project and in testMain).
     // With compose.desktop.common you will also lose @Preview functionality
     implementation(compose.desktop.currentOs)
+    implementation(compose.materialIconsExtended)
+
+    // For implementing native file/folder pickers
+    val lwjglVersion = "3.3.1"
+    listOf("lwjgl", "lwjgl-nfd").forEach { lwjglDep ->
+        implementation("org.lwjgl:${lwjglDep}:${lwjglVersion}")
+        listOf(
+            "natives-windows", "natives-windows-x86", "natives-windows-arm64",
+            "natives-macos", "natives-macos-arm64",
+            "natives-linux", "natives-linux-arm64", "natives-linux-arm32"
+        ).forEach { native ->
+            runtimeOnly("org.lwjgl:${lwjglDep}:${lwjglVersion}:${native}")
+        }
+    }
     testImplementation("org.junit.jupiter:junit-jupiter:5.8.1")
 }
 

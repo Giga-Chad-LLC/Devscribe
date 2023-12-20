@@ -15,33 +15,34 @@ import androidx.compose.ui.unit.sp
 import components.resizable.SplitState
 import components.resizable.VerticallySplittable
 import components.vfs.OSVirtualFileSystem
+import models.FileTreeModel
+import models.TabsModel
 import viewmodels.FileTreeViewModel
 import viewmodels.ProjectViewModel
 import viewmodels.TabsViewModel
 import views.design.CustomTheme
 import views.design.Fonts
 import views.design.Settings
+import views.editor.Editor
 import views.filestree.FileTree
 import views.filestree.FileTreeLabel
 import views.tabs.TabsContainer
-import views.editor.Editor
-import java.nio.file.Path
 
 
 class SidebarState {
     var width by mutableStateOf(300.dp)
-    val minWidth =100.dp
+    val minWidth = 100.dp
     val splitState = SplitState()
 }
 
 @Composable
 @Preview
 fun App() {
-    val vfs = OSVirtualFileSystem(Path.of("C:/Users/Vladislav/Downloads/devscribe-project-folder"))
+    val vfs = OSVirtualFileSystem()
     val coroutineScope = rememberCoroutineScope() // required to run the state updates on the same scope as components composed
-    val projectViewModel by remember { mutableStateOf(ProjectViewModel(vfs, coroutineScope)) }
-    val tabsViewModel by remember { mutableStateOf(TabsViewModel(projectViewModel.tabsModel, coroutineScope)) }
-    val fileTreeViewModel by remember { mutableStateOf(FileTreeViewModel(projectViewModel.fileTreeModel, tabsViewModel)) }
+    val tabsViewModel by remember { mutableStateOf(TabsViewModel(TabsModel(), coroutineScope)) }
+    val fileTreeViewModel by remember { mutableStateOf(FileTreeViewModel(vfs, FileTreeModel(), tabsViewModel, coroutineScope)) }
+    val projectViewModel by remember { mutableStateOf(ProjectViewModel(vfs, tabsViewModel, fileTreeViewModel, coroutineScope)) }
     val settings by remember { mutableStateOf(Settings()) }
 
     val sidebarState = remember { SidebarState() }

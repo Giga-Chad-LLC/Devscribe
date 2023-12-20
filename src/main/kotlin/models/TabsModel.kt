@@ -5,7 +5,7 @@ import components.vfs.nodes.VFSFile
 import java.util.*
 
 class TabsModel {
-    val pinnedFiles = mutableStateListOf<PinnedFileModel>()
+    var pinnedFiles = mutableStateListOf<PinnedFileModel>()
 
     fun add(file: VFSFile): PinnedFileModel {
         val pinnedFile = PinnedFileModel(file)
@@ -33,5 +33,11 @@ class TabsModel {
     fun get(file: VFSFile): PinnedFileModel {
         return pinnedFiles.find { fileModel -> fileModel.virtualFile.id == file.id }
             ?: throw IllegalArgumentException("VFS file with id ${file.id} not found among pinned files")
+    }
+
+    fun rename(file: VFSFile, renameTo: String) {
+        if (containsFile(file)) {
+            get(file).filename = renameTo
+        }
     }
 }

@@ -17,6 +17,10 @@ class VFSDirectory(
         childrenNodes.add(child)
     }
 
+    fun removeChildNode(child: VFSNode) {
+        childrenNodes.remove(child)
+    }
+
     fun getChildren(): List<VFSNode> {
         return Collections.unmodifiableList(childrenNodes)
     }
