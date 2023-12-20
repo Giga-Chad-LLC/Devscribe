@@ -59,6 +59,13 @@ internal fun EditorState.getSelection(): Pair<CanvasPosition, CanvasPosition>? {
 }
 
 
+internal fun EditorState.deleteSelection() {
+    val (selectionStart, selectionEnd) = getSelection() ?: return
+    clearSelection()
+    textViewModel.delete(selectionStart.offset, selectionEnd.offset)
+}
+
+
 internal fun EditorState.copySelection(clipboardManager: ClipboardManager) {
     val (selectionStart, selectionEnd) = getSelection() ?: return
 

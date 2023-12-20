@@ -104,6 +104,13 @@ class TextViewModel(coroutineScope: CoroutineScope, private var activeFileModel:
         debounceHandler.run(activeFileModel)
     }
 
+    /**
+     * Removes piece of text in range [startOffset, endOffset)
+     */
+    fun delete(startOffset: Int, endOffset: Int) {
+        activeFileModel.textModel.removeRange(startOffset, endOffset)
+    }
+
     fun insert(ch: Char) {
         activeFileModel.textModel.insert(ch)
         debounceHandler.run(activeFileModel)

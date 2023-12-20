@@ -7,6 +7,12 @@ interface TextModel {
 
     fun backspace()
     fun delete()
+
+    /**
+     * Removes text in range [startOffset, endOffset)
+     */
+    fun removeRange(beginOffset: Int, endOffset: Int)
+
     fun newline()
     fun insert(ch: Char) {
         insert(ch.toString())

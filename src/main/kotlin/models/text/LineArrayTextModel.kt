@@ -95,6 +95,88 @@ class LineArrayTextModel : TextModel {
         println(cursor)
     }
 
+    override fun removeRange(beginOffset: Int, endOffset: Int) {
+        val linesToRemoveIndexes = mutableListOf<Int>()
+        var currentOffset = 0
+
+        var firstLineStartOffset: Int = -1
+        var lastLineStartOffset: Int = -1
+
+        // collect line to remove
+        for (i in textLines.indices) {
+            // first line
+            if (currentOffset <= beginOffset && beginOffset <= currentOffset + textLines[i].length) {
+                linesToRemoveIndexes.add(i)
+                firstLineStartOffset = currentOffset
+            }
+            // last line
+            else if (currentOffset <= endOffset && endOffset <= currentOffset + textLines[i].length) {
+                linesToRemoveIndexes.add(i)
+                lastLineStartOffset = currentOffset
+            }
+            // in-between line
+            else if (currentOffset in beginOffset until endOffset) {
+                linesToRemoveIndexes.add(i)
+            }
+            // TODO: else break?
+
+            currentOffset += (textLines[i].length + System.lineSeparator().length)
+        }
+
+        assert(firstLineStartOffset >= 0)
+        assert(lastLineStartOffset >= 0 || linesToRemoveIndexes.size == 1)
+
+        /*fun trimTextLine(index: Int, dropFirstCount: Int, dropLastCount: Int) {
+            val lineLength = textLines[index].length
+            textLines[index] = textLines[index]
+                // remove characters after end offset (inclusive)
+                .substring(0, lineLength - dropLastCount)
+                // remove first characters to reach start offset
+                .substring(dropFirstCount)
+        }*/
+
+        // range corresponds to a single line
+        if (linesToRemoveIndexes.size == 1) {
+            val index = linesToRemoveIndexes.first()
+            val leftRemainingChunk = textLines[index].substring(0, beginOffset - firstLineStartOffset)
+            val rightRemainingChunk = textLines[index].substring(endOffset - firstLineStartOffset)
+
+            textLines[index] = leftRemainingChunk + rightRemainingChunk
+        }
+        // range consists of multiple lines
+        else {
+            // trim first and last lines: the result is concatenation of them
+            run {
+                val firstIndex = linesToRemoveIndexes.first()
+                val firstChunk = textLines[firstIndex].substring(0, beginOffset - firstLineStartOffset)
+
+                val lastIndex = linesToRemoveIndexes.last()
+                val lastChunk = textLines[lastIndex].substring(endOffset - lastLineStartOffset)
+
+                textLines[firstIndex] = firstChunk + lastChunk
+                textLines.removeAt(lastIndex)
+            }
+            /**
+             * Remove intermediate lines.
+             * Removing lines in a reversed order since it is sorted in descending order.
+             * In this case lines will be deleted from the greatest index to the lowest index,
+             * thus yet not deleted lines with lower will preserve their initial indexes.
+             */
+            val reversedLineIndexes = linesToRemoveIndexes.reversed()
+            for (i in 1 until reversedLineIndexes.lastIndex) {
+                textLines.removeAt(reversedLineIndexes[i])
+            }
+        }
+
+        cursor = cursor.run {
+            val newOffset = beginOffset
+            val newLineNumber = linesToRemoveIndexes.first()
+            val newCurrentLineOffset = beginOffset - firstLineStartOffset
+
+            Cursor(newOffset, newLineNumber, newCurrentLineOffset)
+        }
+    }
+
     override fun newline() {
         val currentCursorLineChunks = splitCurrentCursorLine()
         textLines[cursor.lineNumber] = currentCursorLineChunks.beforeCursor
