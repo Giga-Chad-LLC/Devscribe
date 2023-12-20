@@ -8,13 +8,16 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.unit.IntSize
 import common.TextConstants
 import common.ceilToInt
-import components.lexer.Lexer
-import components.lexer.Token
-import models.highlighters.*
 import viewmodels.TextViewModel
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
+
+internal data class CanvasPosition(
+    val lineIndex: Int,
+    val lineOffset: Int,
+    val offset: Int,
+)
 
 internal data class EditorState(
     val verticalScrollOffset: MutableState<Float>,
@@ -22,11 +25,43 @@ internal data class EditorState(
     val canvasSize: MutableState<IntSize>,
     val symbolSize: Size,
     val textViewModel: TextViewModel,
+    val textSelectionStartOffset: MutableState<CanvasPosition?>,
 
     val isSearchBarVisible: MutableState<Boolean>,
     val searchState: SearchState,
 )
 
+internal fun EditorState.getSelection(): Pair<CanvasPosition, CanvasPosition>? {
+    var selectionStart = textSelectionStartOffset.value
+    if (selectionStart != null) {
+        var selectionEnd = CanvasPosition(
+            lineIndex = textViewModel.cursor.lineNumber,
+            lineOffset = textViewModel.cursor.currentLineOffset,
+            offset = textViewModel.cursor.offset,
+        )
+
+        if (selectionStart.offset > selectionEnd.offset) {
+            val tmp = selectionEnd
+            selectionEnd = selectionStart
+            selectionStart = tmp
+        }
+
+        return (selectionStart to selectionEnd)
+    }
+
+    return null
+}
+
+internal fun EditorState.clearSelection() {
+    textSelectionStartOffset.value = null
+}
+
+internal fun EditorState.startSelection() {
+    val lineIndex = textViewModel.cursor.lineNumber
+    val lineOffset = textViewModel.cursor.currentLineOffset
+    val offset = textViewModel.cursor.offset
+    textSelectionStartOffset.value = CanvasPosition(lineIndex, lineOffset, offset)
+}
 
 internal fun EditorState.getMaxVerticalScrollOffset(): Float {
     /**
@@ -142,6 +177,10 @@ internal fun EditorState.canvasOffsetToCursorPosition(offset: Offset) : Pair<Int
     return lineIndex to lineOffset
 }
 
+// TODO: use it everywhere, i.e. remove manual conversion
+internal fun EditorState.canvasPositionToCanvasViewport(canvasPosition: CanvasPosition): Pair<Float, Float> {
+    return ((canvasPosition.lineOffset * symbolSize.width) to (canvasPosition.lineIndex * symbolSize.height))
+}
 
 internal fun EditorState.viewportLinesRange(): Pair<Int, Int> {
     val startOffset = Offset(horizontalScrollOffset.value, verticalScrollOffset.value)
