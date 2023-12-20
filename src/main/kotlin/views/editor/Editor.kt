@@ -262,12 +262,18 @@ private fun Modifier.handleKeyboardInput(editorState: EditorState, clipboardMana
                     consumed = true
                 }
                 else if (keyEvent.type == KeyEventType.KeyDown && keyEvent.key == Key.Backspace) {
-                    // TODO: check if selection exists
-                    textViewModel.backspace()
+                    if (editorState.selectionExists()) {
+                        editorState.deleteSelection()
+                    }
+                    else {
+                        textViewModel.backspace()
+                    }
                     consumed = true
                 }
                 else if (keyEvent.type == KeyEventType.KeyDown && keyEvent.key == Key.Enter) {
-                    // TODO: remove selected text and insert newline
+                    if (editorState.selectionExists()) {
+                        editorState.deleteSelection()
+                    }
                     textViewModel.newline()
                     consumed = true
                 }
@@ -344,11 +350,19 @@ private fun Modifier.handleKeyboardInput(editorState: EditorState, clipboardMana
                     consumed = true
                 }
                 else if (keyEvent.type == KeyEventType.KeyDown && keyEvent.key == Key.Spacebar) {
+                    if (editorState.selectionExists()) {
+                        editorState.deleteSelection()
+                    }
                     textViewModel.whitespace()
                     consumed = true
                 }
                 else if (keyEvent.type == KeyEventType.KeyDown && keyEvent.key == Key.Delete) {
-                    textViewModel.delete()
+                    if (editorState.selectionExists()) {
+                        editorState.deleteSelection()
+                    }
+                    else {
+                        textViewModel.delete()
+                    }
                     consumed = true
                 }
                 else if (keyEvent.type == KeyEventType.KeyDown && keyEvent.isCtrlPressed && keyEvent.key == Key.C) {
@@ -357,6 +371,7 @@ private fun Modifier.handleKeyboardInput(editorState: EditorState, clipboardMana
                 }
                 else if (keyEvent.type == KeyEventType.KeyDown && keyEvent.isCtrlPressed && keyEvent.key == Key.V) {
                     // insert text from clipboard
+                    editorState.deleteSelection()
                     editorState.pasteTextFromClipboard(clipboardManager)
                 }
                 else if (keyEvent.type == KeyEventType.KeyDown && keyEvent.isCtrlPressed && keyEvent.key == Key.X) {
@@ -373,6 +388,9 @@ private fun Modifier.handleKeyboardInput(editorState: EditorState, clipboardMana
                     consumed = true
                 }
                 else if (keyEvent.type == KeyEventType.KeyDown && isPrintableSymbolAction(keyEvent)) {
+                    if (editorState.selectionExists()) {
+                        editorState.deleteSelection()
+                    }
                     textViewModel.insert(keyEvent.utf16CodePoint.toChar())
                     consumed = true
                 }

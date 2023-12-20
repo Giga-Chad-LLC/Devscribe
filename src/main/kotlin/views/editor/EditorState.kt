@@ -65,6 +65,9 @@ internal fun EditorState.deleteSelection() {
     textViewModel.delete(selectionStart.offset, selectionEnd.offset)
 }
 
+internal fun EditorState.selectionExists(): Boolean {
+    return textSelectionStartOffset.value != null
+}
 
 internal fun EditorState.copySelection(clipboardManager: ClipboardManager) {
     val (selectionStart, selectionEnd) = getSelection() ?: return
