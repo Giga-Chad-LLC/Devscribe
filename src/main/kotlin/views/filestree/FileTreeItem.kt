@@ -46,14 +46,13 @@ import views.design.CustomTheme
 import views.design.FontSettings
 
 
-@OptIn(ExperimentalComposeUiApi::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun FileTreeItem(
     fontSize: TextUnit,
     height: Dp,
     node: FileTreeModel.NodeModel,
     fileTreeViewModel: FileTreeViewModel,
-    onDrag: (DpOffset) -> Unit = {}
 ) {
     val styledContextMenuRepresentation = DefaultContextMenuRepresentation(
         backgroundColor = CustomTheme.colors.backgroundDark,
@@ -64,9 +63,6 @@ fun FileTreeItem(
 
     var isRenaming by remember { mutableStateOf(false) }
     var renameNodeTo by remember { mutableStateOf(node.filename) }
-
-    var isDragging by remember { mutableStateOf(false) }
-    var dragOffset by remember { mutableStateOf(Offset(0f, 0f)) }
 
     var isFocusOnMountRequired by remember { mutableStateOf(true) }
     val focusRequester = remember { FocusRequester() }
@@ -106,55 +102,12 @@ fun FileTreeItem(
         ) {
             Row(
                 modifier = Modifier
-                    .background(if (isDragging) CustomTheme.colors.focusedAccentColor else Color.Transparent)
                     .clickable {
                         fileTreeViewModel.click(node)
                     }
                     .padding(start = 24.dp * node.level)
-                    .offset {
-                        IntOffset(dragOffset.x.toInt(), dragOffset.y.toInt())
-                    }
                     .height(height)
                     .fillMaxWidth()
-//                    .pointerInput(Unit) {
-//                        detectDragGestures(
-//                            onDragStart = {_ ->
-//                                println("onDragStart (detect): ${node.filename}")
-//                                isDragging = true
-//                            },
-//                            onDrag = { _, dragAmount ->
-//                                println("onDrag($dragAmount, detect): ${node.filename}")
-//                                val shift = DpOffset(x = dragAmount.x.dp, y = dragAmount.y.dp)
-//                                onDrag(shift)
-//                                dragOffset += dragAmount
-//                            },
-//                            onDragCancel = {
-//                               println("Cancel dragging with detect")
-//                            },
-//                            onDragEnd = {
-//                                println("onDragEnd (detect): ${node.filename}")
-//                                isDragging = false
-//                                dragOffset = Offset.Zero
-//                            }
-//                        )
-//                    }
-                    .onDrag(
-                        onDragStart = {
-                            println("onDragStart: ${node.filename}")
-                            isDragging = true
-                        },
-                        onDrag = {
-                            println("onDrag($it): ${node.filename}")
-                            val shift = DpOffset(x = it.x.dp, y = it.y.dp)
-                            onDrag(shift)
-                            dragOffset += it
-                        },
-                        onDragEnd = {
-                            println("onDragEnd: ${node.filename}")
-                            isDragging = false
-                            dragOffset = Offset.Zero
-                        }
-                    )
             ) {
                 FileTreeItemIcon(Modifier.align(Alignment.CenterVertically), node)
 

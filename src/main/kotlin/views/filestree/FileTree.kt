@@ -18,24 +18,15 @@ import viewmodels.FileTreeViewModel
 @Composable
 fun FileTree(fileTreeViewModel: FileTreeViewModel) = Box {
     val scrollState = rememberLazyListState()
-    var treeItemViewsOffsets by remember { mutableStateOf<List<DpOffset>>(emptyList()) }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         state = scrollState
     ) {
-//        items(fileTreeViewModel.nodes.size) { index ->
-//            FileTreeItem(14.sp, 21.dp, fileTreeViewModel.nodes[index], fileTreeViewModel, onDrag = {
-//                println("Dragged callback")
-//            })
-//        }
-
         items(
             count = fileTreeViewModel.nodes.size,
             itemContent = { index ->
-                FileTreeItem(14.sp, 21.dp, fileTreeViewModel.nodes[index], fileTreeViewModel, onDrag = {
-                    println("Dragged callback")
-                })
+                FileTreeItem(14.sp, 21.dp, fileTreeViewModel.nodes[index], fileTreeViewModel)
             }
         )
     }
