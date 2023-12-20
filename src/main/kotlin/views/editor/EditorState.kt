@@ -131,7 +131,7 @@ internal fun EditorState.searchTextInFile(uneditedSearchText: String) {
  */
 internal fun EditorState.canvasOffsetToCursorPosition(offset: Offset) : Pair<Int, Int> {
     val lineIndex = ((offset.y + verticalScrollOffset.value) / symbolSize.height)
-        .toInt().coerceAtMost(textViewModel.textModel.linesCount() - 1)
+        .toInt().coerceAtLeast(0).coerceAtMost(textViewModel.textModel.linesCount() - 1)
 
     /*println("symbolWidth=${symbolSize.width}")
     println("lineOffsetFloat=${(offset.x + horizontalScrollOffset.value - TEXT_CANVAS_LEFT_MARGIN) / symbolSize.width}")*/
