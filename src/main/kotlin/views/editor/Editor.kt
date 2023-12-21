@@ -40,7 +40,9 @@ import models.PinnedFileModel
 import models.highlighters.*
 import models.text.Cursor
 import viewmodels.TextViewModel
+import views.common.TextFontChanger
 import views.design.CustomTheme
+import views.design.FontSettings
 import views.design.Settings
 import kotlin.math.max
 import kotlin.math.min
@@ -249,7 +251,10 @@ private fun Modifier.pointerInput(focusRequester: FocusRequester, editorState: E
  * Handles keyboard inputs by executing commands of TextViewModel
  */
 @OptIn(ExperimentalComposeUiApi::class)
-private fun Modifier.handleKeyboardInput(editorState: EditorState, clipboardManager: ClipboardManager): Modifier {
+private fun Modifier.handleKeyboardInput(
+    editorState: EditorState,
+    clipboardManager: ClipboardManager,
+    settings: Settings): Modifier {
     val textViewModel = editorState.textViewModel
 
     return this.then(
@@ -381,6 +386,14 @@ private fun Modifier.handleKeyboardInput(editorState: EditorState, clipboardMana
                 }
                 else if (keyEvent.type == KeyEventType.KeyDown && keyEvent.isCtrlPressed && keyEvent.key == Key.F) {
                     editorState.isSearchBarVisible.value = true
+                }
+                else if (keyEvent.type == KeyEventType.KeyDown && keyEvent.isCtrlPressed &&
+                         keyEvent.isShiftPressed && keyEvent.key == Key.Equals) {
+                    TextFontChanger.increaseFontSize(settings)
+                }
+                else if (keyEvent.type == KeyEventType.KeyDown && keyEvent.isCtrlPressed &&
+                    keyEvent.isShiftPressed && keyEvent.key == Key.Minus) {
+                    TextFontChanger.decreaseFontSize(settings)
                 }
                 else if (keyEvent.type == KeyEventType.KeyDown && !keyEvent.isCtrlPressed && keyEvent.key == Key.Tab) {
                     // writing tabulation symbol on tab press
@@ -515,13 +528,7 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
     val textViewModel by remember { mutableStateOf(TextViewModel(coroutineScope, activeFileModel)) }
     var previousCursorState by remember { mutableStateOf(Cursor(textViewModel.cursor)) }
     val requester = remember { FocusRequester() }
-    val editorTextStyle = remember {
-        TextStyle(
-            color = Color.LightGray,
-            fontSize = settings.fontSettings.fontSize,
-            fontFamily = settings.fontSettings.fontFamily
-        )
-    }
+    val editorTextStyle = settings.editorSettings.codeFontSettings
 
     val fontFamilyResolver = LocalFontFamilyResolver.current
     val density = LocalDensity.current.density
@@ -530,8 +537,17 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
         verticalScrollOffset = remember { mutableStateOf(0f) },
         horizontalScrollOffset = remember { mutableStateOf(0f) },
         canvasSize = remember { mutableStateOf(IntSize.Zero) },
-        symbolSize = remember(settings.fontSettings) {
-            getSymbolSize(fontFamilyResolver, textMeasurer, settings.fontSettings, density)
+        symbolSize = remember(editorTextStyle) {
+            getSymbolSize(
+                fontFamilyResolver,
+                textMeasurer,
+                FontSettings(
+                    fontColor = editorTextStyle.color,
+                    fontSize = editorTextStyle.fontSize,
+                    fontFamily = editorTextStyle.fontFamily!!,
+                ),
+                density,
+            )
         },
         textViewModel = textViewModel,
         textSelectionStartOffset = remember { mutableStateOf(null) },
@@ -620,7 +636,7 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
                         // focusRequester() should be added BEFORE focusable()
                         .focusRequester(requester)
                         .focusable(interactionSource = editorInteractionSource)
-                        .handleKeyboardInput(editorState, LocalClipboardManager.current)
+                        .handleKeyboardInput(editorState, LocalClipboardManager.current, settings)
                         .onSizeChanged { editorState.canvasSize.value = it }
                         .pointerInput(requester, editorState)
                         .scrollable(verticalScrollState, Orientation.Vertical)
@@ -729,7 +745,7 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
                             val cursorOffset = textViewModel.textModel.totalOffsetOfLine(it.cursor.lineNumber) -
                                         textViewModel.textModel.totalOffsetOfLine(startVisibleLineIndex) + it.cursor.currentLineOffset
 
-                            val cursor: Rect = measuredText.getCursorRect(cursorOffset/*it.cursor.offset*/)
+                            val cursor: Rect = measuredText.getCursorRect(cursorOffset)
                             drawRect(
                                 color = Color.White,
                                 topLeft = Offset(
