@@ -278,13 +278,13 @@ class LineArrayTextModel : TextModel {
             '(', ')',
         )
 
-        if (chunk.indexOfFirst { it != TextConstants.nonBreakingSpaceChar } == -1) {
-            // chunk consists of only whitespaces
-            println("[chunk='${chunk}']: whitespaceCountBeforeFirstWord=${chunk.length} firstWord=''")
+        if (chunk.indexOfFirst { !delimiters.contains(it) } == -1) {
+            // chunk consists of only delimiters
+            println("[chunk='${chunk}']: delimitersCountBeforeFirstWord=${chunk.length} firstWord=''")
             return chunk.length
         }
         else {
-            val whitespaceCountBeforeFirstWord = chunk
+            val delimitersCountBeforeFirstWord = chunk
                 // dropping letters after a starting sequence of consecutive delimiters
                 .dropLast(chunk.length - max(chunk.indexOfFirst { !delimiters.contains(it) }, 0))
                 .count()
@@ -293,9 +293,9 @@ class LineArrayTextModel : TextModel {
                 .split(*delimiters.map { ch -> ch.toString() }.toTypedArray())
                 .firstOrNull { s -> s.isNotEmpty() } ?: ""
 
-            println("[chunk='${chunk}']: whitespaceCountBeforeFirstWord=${whitespaceCountBeforeFirstWord} firstWord='${firstWord}'")
+            println("[chunk='${chunk}']: delimitersCountBeforeFirstWord=${delimitersCountBeforeFirstWord} firstWord='${firstWord}'")
 
-            return whitespaceCountBeforeFirstWord + firstWord.length
+            return delimitersCountBeforeFirstWord + firstWord.length
         }
     }
 
