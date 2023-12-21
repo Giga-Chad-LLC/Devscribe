@@ -41,6 +41,7 @@ import models.highlighters.*
 import models.text.Cursor
 import viewmodels.TextViewModel
 import views.common.TextFontChanger
+import views.common.ThemeChanger
 import views.design.CustomTheme
 import views.design.FontSettings
 import views.design.Settings
@@ -395,6 +396,10 @@ private fun Modifier.handleKeyboardInput(
                     keyEvent.isShiftPressed && keyEvent.key == Key.Minus) {
                     TextFontChanger.decreaseFontSize(settings)
                 }
+                else if (keyEvent.type == KeyEventType.KeyDown && keyEvent.isCtrlPressed &&
+                         keyEvent.isShiftPressed && keyEvent.key == Key.T) {
+                    ThemeChanger.selectNextTheme(settings)
+                }
                 else if (keyEvent.type == KeyEventType.KeyDown && !keyEvent.isCtrlPressed && keyEvent.key == Key.Tab) {
                     // writing tabulation symbol on tab press
                     textViewModel.insert("    ")
@@ -676,7 +681,7 @@ fun Editor(activeFileModel: PinnedFileModel, settings: Settings) {
 
                         // drawing highlighter of cursored line
                         drawRect(
-                            color = Color.DarkGray,
+                            color = settings.editorSettings.cursoredLineColor,
                             topLeft = Offset(0f, it.cursor.lineNumber * editorState.symbolSize.height + translationY),
                             size = Size(editorState.canvasSize.value.width.toFloat(), editorState.symbolSize.height)
                         )
