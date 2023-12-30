@@ -29,28 +29,29 @@ class Settings {
             fontFamily = FontFamily.SansSerif,
         )
     )
-    val editorSettings by mutableStateOf(EditorSettings())
+    var editorSettings by mutableStateOf(EditorSettings())
 }
 
 class EditorSettings {
-    val linesPanel by mutableStateOf(LinesPanel())
+    var linesPanel by mutableStateOf(LinesPanel())
     var codeFontSettings by mutableStateOf(EditorFontSettingsStates.editorTextFontSettingsDefault)
-    val highlightingOptions by mutableStateOf(HighlightingOptions())
-    val selectionColor by mutableStateOf(Color(33, 67, 131))
+    var highlightingOptions by mutableStateOf(HighlightingOptions())
+    var selectionColor by mutableStateOf(Color(33, 67, 131))
+    var cursoredLineColor by mutableStateOf(Color.DarkGray)
 }
 
 // TODO: move 'Color(90, 89, 86)' into separate variable (primaryColor in CustomTheme.colors?)
 class LinesPanel {
     var fontSettings by mutableStateOf(EditorFontSettingsStates.linesPanelFontSettingsDefault)
-    val backgroundColor = Color(49, 51,53)
-    val splitLineColor = Color(79, 79, 79)
-    val editorFocusedSplitLineColor = Color(92, 92, 92) // light dray
-    val cursoredLineFontColor = Color.LightGray
+    var backgroundColor = Color(49, 51,53)
+    var splitLineColor = Color(79, 79, 79)
+    var editorFocusedSplitLineColor = Color(92, 92, 92) // light dray
+    var cursoredLineFontColor = Color.LightGray
 }
 
 class HighlightingOptions {
-    val searchResultColor = Color(0xFF32593D)
-    val selectedSearchResultColor = CustomTheme.colors.focusedAccentColor
+    var searchResultColor = Color(0xFF32593D)
+    var selectedSearchResultColor = CustomTheme.colors.focusedAccentColor
 }
 
 
