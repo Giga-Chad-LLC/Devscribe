@@ -33,5 +33,34 @@ Full-fledged IDE developed in Kotlin with support of syntax highlighting, file r
 - Support for an arbitrary number of VFS commands via **Command** pattern and execution pipeline using queue of commands and additional worker thread.
 
 
+## Demos:
+
+### Theme switching:
+
+![Theme switching](./assets/theme-switching.gif)
+
+### Text resizing:
+
+![Text resizing](./assets/resizing.gif)
+
+### Manipulation of a huge file (performance demonstration):
+
+The demonstrated file contains ~10K lines of code.
+
+![Manipulation of a huge file (performance demonstration)](./assets/huge-file-scrolling-and-manipulation.gif)
+
+### Text writing:
+
+![Text writing](./assets/writing-text.gif)
+
+### Selection & Deletion:
+
+![Selection & Deletion](./assets/selection-and-deletion.gif)
+
+### Folder selection from file system:
+
+![Folder selection from file system](./assets/project-selection.gif)
+
+
 ## How to build and run the project:
 Pretty straight-forward: clone the project repo and build the project via Intellij IDE.
